@@ -340,3 +340,66 @@ python3 base_add_test.py
 123 * 456 = 56088
 PASS
 ```
+
+## Auto Summary Reports
+
+The VS Code build tasks now generate readable summary reports automatically.
+
+After running:
+
+```text
+FPGA: 1 Build HLS IP
+```
+
+open this file in the project root:
+
+```text
+HLS_REPORT.md
+```
+
+It summarizes C simulation, HLS timing, latency, resource estimate, exported IP
+files, and AXI-Lite register addresses.
+
+After running:
+
+```text
+FPGA: 2 Build Vivado Overlay
+```
+
+open this file in the project root:
+
+```text
+VIVADO_OVERLAY_REPORT.md
+```
+
+It summarizes bitstream generation, `base_add.bit` / `base_add.hwh` update time,
+final routed timing, resource usage, and the next PYNQ upload step.
+
+You can regenerate reports without rebuilding:
+
+```text
+Ctrl+Shift+P -> Tasks: Run Task -> FPGA: Generate HLS Report Only
+Ctrl+Shift+P -> Tasks: Run Task -> FPGA: Generate Vivado Overlay Report Only
+```
+
+The original Vivado/HLS logs are kept unchanged. Read the summary reports first,
+and open raw `.log` or `.rpt` files only when something fails.
+
+## Jupyter Note
+
+You do not need the VS Code Jupyter extension to run this project on PYNQ.
+
+For board testing, use the PYNQ web page in your browser:
+
+```text
+http://192.168.2.99:9090
+```
+
+Then upload and open:
+
+```text
+base_add_demo.ipynb
+```
+
+The VS Code Jupyter extension is only for viewing or editing notebooks on the PC
+side. It is optional.

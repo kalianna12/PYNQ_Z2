@@ -3,7 +3,7 @@
 
 #include <ap_int.h>
 
-void base_add(ap_uint<32> a, ap_uint<32> b, ap_uint<32> *result);
+void base_add(ap_int<32> a, ap_int<32> b,ap_int<32> mode, ap_int<32> *result);
 
 #endif
 
