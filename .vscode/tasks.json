@@ -1,0 +1,51 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "FPGA: 1 Build HLS IP",
+      "type": "shell",
+      "command": "G:\\Xilinx\\Vivado\\2018.2\\bin\\vivado_hls.bat",
+      "args": [
+        "-f",
+        "${workspaceFolder}\\hls\\hls.tcl"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}",
+        "env": {
+          "DEBUG": ""
+        }
+      },
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "FPGA: 2 Build Vivado Overlay",
+      "type": "shell",
+      "command": "G:\\Xilinx\\Vivado\\2018.2\\bin\\vivado.bat",
+      "args": [
+        "-mode",
+        "batch",
+        "-source",
+        "${workspaceFolder}\\vivado\\build.tcl"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "FPGA: Open Vivado Project",
+      "type": "shell",
+      "command": "G:\\Xilinx\\Vivado\\2018.2\\bin\\vivado.bat",
+      "args": [
+        "${workspaceFolder}\\build\\vivado\\base_add_overlay.xpr"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": []
+    }
+  ]
+}
+
