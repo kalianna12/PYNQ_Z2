@@ -157,4 +157,28 @@ $(Code-Block "FPGA: 2 Build Vivado Overlay" "cmd")
 "@
 
 Set-Content -Path $Out -Value $content -Encoding UTF8
-Write-Host "Generated HLS report: $Out"
+Write-Host ""
+Write-Host "========== HLS SUMMARY REPORT ==========" -ForegroundColor Cyan
+Write-Host "Report file : $Out"
+Write-Host "Generated at: $now"
+if ($csimStatus -eq "PASS") {
+    Write-Host "C simulation: PASS" -ForegroundColor Green
+} elseif ($csimStatus -eq "FAIL" -or $csimStatus -eq "MISSING") {
+    Write-Host "C simulation: $csimStatus" -ForegroundColor Red
+} else {
+    Write-Host "C simulation: $csimStatus" -ForegroundColor Yellow
+}
+if ($timingStatus -eq "PASS") {
+    Write-Host "Timing      : PASS, Target $target ns, Estimated $estimated ns" -ForegroundColor Green
+} elseif ($timingStatus -eq "FAIL") {
+    Write-Host "Timing      : FAIL, Target $target ns, Estimated $estimated ns" -ForegroundColor Red
+} else {
+    Write-Host "Timing      : $timingStatus, Target $target ns, Estimated $estimated ns" -ForegroundColor Yellow
+}
+if ($ipStatus -eq "PASS") {
+    Write-Host "IP export   : PASS" -ForegroundColor Green
+} else {
+    Write-Host "IP export   : $ipStatus" -ForegroundColor Yellow
+}
+Write-Host "Next step   : FPGA: 2 Build Vivado Overlay"
+Write-Host "========================================" -ForegroundColor Cyan

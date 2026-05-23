@@ -150,4 +150,25 @@ Then run **base_add_test.py** on the board, or open the notebook in the board's 
 "@
 
 Set-Content -Path $Out -Value $content -Encoding UTF8
-Write-Host "Generated Vivado overlay report: $Out"
+Write-Host ""
+Write-Host "========== VIVADO OVERLAY REPORT ==========" -ForegroundColor Cyan
+Write-Host "Report file : $Out"
+Write-Host "Generated at: $now"
+if ($bitgenStatus -eq "PASS") {
+    Write-Host "Bitstream   : PASS" -ForegroundColor Green
+} elseif ($bitgenStatus -eq "FAIL" -or $bitgenStatus -eq "MISSING") {
+    Write-Host "Bitstream   : $bitgenStatus" -ForegroundColor Red
+} else {
+    Write-Host "Bitstream   : $bitgenStatus" -ForegroundColor Yellow
+}
+if ($timingStatus -eq "PASS") {
+    Write-Host "Timing      : PASS, WNS $wns ns" -ForegroundColor Green
+} elseif ($timingStatus -eq "FAIL") {
+    Write-Host "Timing      : FAIL, WNS $wns ns" -ForegroundColor Red
+} else {
+    Write-Host "Timing      : $timingStatus, WNS $wns ns" -ForegroundColor Yellow
+}
+Write-Host "bit file    : $BitFile"
+Write-Host "hwh file    : $HwhFile"
+Write-Host "Next step   : upload bit/hwh/py/ipynb to PYNQ, then run base_add_test.py"
+Write-Host "===========================================" -ForegroundColor Cyan

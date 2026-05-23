@@ -1,6 +1,6 @@
 ﻿# Vivado Overlay Report
 
-Generated: **2026-05-24 00:37:33**
+Generated: **2026-05-24 01:21:00**
 
 ## 1. Build Status
 
@@ -15,8 +15,8 @@ Generated: **2026-05-24 00:37:33**
 
 | File | Status | Bytes | Last Write Time |
 |---|---|---:|---|
-| base_add.bit | <span style="color:#008000;font-weight:bold;">FOUND</span> | 4045674 | 2026-05-24 00:21:27 |
-| base_add.hwh | <span style="color:#008000;font-weight:bold;">FOUND</span> | 154667 | 2026-05-24 00:18:30 |
+| base_add.bit | <span style="color:#008000;font-weight:bold;">FOUND</span> | 4045674 | 2026-05-24 01:20:48 |
+| base_add.hwh | <span style="color:#008000;font-weight:bold;">FOUND</span> | 159778 | 2026-05-24 01:17:53 |
 
 Upload these two files to the PYNQ board after PL hardware changes.
 
@@ -30,7 +30,7 @@ G:\VSCODE_Save_Files\PYNQ_Z2Code\PYNQZ2_PSPL_Base\build\vivado\base_add_overlay.
 
 | WNS ns | TNS ns | WHS ns | THS ns | Result |
 |---:|---:|---:|---:|---|
-| **13.546** | **0.000** | **0.052** | **0.000** | <span style="color:#008000;font-weight:bold;font-size:16px;">PASS</span> |
+| **12.635** | **0.000** | **0.078** | **0.000** | <span style="color:#008000;font-weight:bold;font-size:16px;">PASS</span> |
 
 Good sign:
 
@@ -51,10 +51,10 @@ G:\VSCODE_Save_Files\PYNQ_Z2Code\PYNQZ2_PSPL_Base\build\vivado\base_add_overlay.
 Key lines:
 
 ~~~text
-| Slice LUTs                 |  628 |     0 |     53200 |  1.18 |
-| Block RAM Tile |    0 |     0 |       140 |  0.00 |
+| Slice LUTs                 |  851 |     0 |     53200 |  1.60 |
+| Block RAM Tile    |    1 |     0 |       140 |  0.71 |
 * Note: Each Block RAM Tile only has one FIFO logic available and therefore can accommodate only one FIFO36E1 or one FIFO18E1. However, if a FIFO18E1 occupies a Block RAM Tile, that tile can still accommodate a RAMB18E1
-| DSPs           |    3 |     0 |       220 |  1.36 |
+| DSPs      |    0 |     0 |       220 |  0.00 |
 ~~~
 
 ## 5. Vivado Project
