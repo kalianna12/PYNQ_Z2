@@ -3,11 +3,10 @@
 
 #include <ap_int.h>
 
-void base_add(
-    int x0, int x1, int x2, int x3,
-    int x4, int x5, int x6, int x7,
-    int *result
-);
+#define MAX_SAMPLE_N 1024
+#define BUFFER_WORDS (MAX_SAMPLE_N * 2)
+
+void base_add(volatile int *buffer, int sample_count);
 
 #endif
 

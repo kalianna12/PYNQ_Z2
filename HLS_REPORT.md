@@ -1,6 +1,6 @@
 ﻿# HLS Report
 
-Generated: **2026-05-24 01:38:36**
+Generated: **2026-05-24 03:07:27**
 
 ## 1. Build Status
 
@@ -22,7 +22,7 @@ G:\VSCODE_Save_Files\PYNQ_Z2Code\PYNQZ2_PSPL_Base\hls\base_add_prj\solution1\csi
 Key result:
 
 ~~~text
-PASS
+FINAL: PASS
 INFO: [SIM 1] CSim done with 0 errors.
 ~~~
 
@@ -30,7 +30,7 @@ INFO: [SIM 1] CSim done with 0 errors.
 
 | Clock | Target ns | Estimated ns | Result |
 |---|---:|---:|---|
-| ap_clk | **10.00** | **7.027** | <span style="color:#008000;font-weight:bold;font-size:16px;">PASS</span> |
+| ap_clk | **10.00** | **8.750** | <span style="color:#008000;font-weight:bold;font-size:16px;">PASS</span> |
 
 Rule: **Estimated < Target** means the HLS estimate is acceptable.
 
@@ -38,13 +38,13 @@ Rule: **Estimated < Target** means the HLS estimate is acceptable.
 
 | Latency min | Latency max | Interval min | Interval max |
 |---:|---:|---:|---:|
-| **5** | **5** | **5** | **5** |
+| **** | **** | **** | **** |
 
 ## 5. Resource Estimate
 
 | BRAM_18K | DSP48E | FF | LUT |
 |---:|---:|---:|---:|
-| 0 | 0 | 672 | 895 |
+| 2 | 0 | 847 | 1147 |
 
 ## 6. Generated IP
 
@@ -58,20 +58,12 @@ Rule: **Estimated < Target** means the HLS estimate is acceptable.
 Read these addresses in Python with ip.write() and ip.read().
 
 ~~~text
-#define XBASE_ADD_CTRL_ADDR_AP_CTRL     0x00
-#define XBASE_ADD_CTRL_ADDR_GIE         0x04
-#define XBASE_ADD_CTRL_ADDR_IER         0x08
-#define XBASE_ADD_CTRL_ADDR_ISR         0x0c
-#define XBASE_ADD_CTRL_ADDR_X0_DATA     0x10
-#define XBASE_ADD_CTRL_ADDR_X1_DATA     0x18
-#define XBASE_ADD_CTRL_ADDR_X2_DATA     0x20
-#define XBASE_ADD_CTRL_ADDR_X3_DATA     0x28
-#define XBASE_ADD_CTRL_ADDR_X4_DATA     0x30
-#define XBASE_ADD_CTRL_ADDR_X5_DATA     0x38
-#define XBASE_ADD_CTRL_ADDR_X6_DATA     0x40
-#define XBASE_ADD_CTRL_ADDR_X7_DATA     0x48
-#define XBASE_ADD_CTRL_ADDR_RESULT_DATA 0x50
-#define XBASE_ADD_CTRL_ADDR_RESULT_CTRL 0x54
+#define XBASE_ADD_CTRL_ADDR_AP_CTRL           0x00
+#define XBASE_ADD_CTRL_ADDR_GIE               0x04
+#define XBASE_ADD_CTRL_ADDR_IER               0x08
+#define XBASE_ADD_CTRL_ADDR_ISR               0x0c
+#define XBASE_ADD_CTRL_ADDR_BUFFER_R_DATA     0x10
+#define XBASE_ADD_CTRL_ADDR_SAMPLE_COUNT_DATA 0x18
 ~~~
 
 ## 8. Next Step

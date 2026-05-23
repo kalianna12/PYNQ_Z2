@@ -26,6 +26,8 @@ update_ip_catalog
 create_bd_design $design_name
 
 create_bd_cell -type ip -vlnv xilinx.com:ip:processing_system7:5.5 processing_system7_0
+set_property -dict [list CONFIG.PCW_USE_S_AXI_HP0 {1}] [get_bd_cells processing_system7_0]
+
 apply_bd_automation -rule xilinx.com:bd_rule:processing_system7 \
     -config {make_external "FIXED_IO, DDR"} \
     [get_bd_cells processing_system7_0]
@@ -51,6 +53,59 @@ if {[llength $ctrl_pin] == 0} {
 apply_bd_automation -rule xilinx.com:bd_rule:axi4 \
     -config {Master "/processing_system7_0/M_AXI_GP0" Clk "Auto"} \
     $ctrl_pin
+
+set m_axi_pin [get_bd_intf_pins -quiet base_add_0/m_axi_GMEM]
+if {[llength $m_axi_pin] == 0} {
+    set m_axi_pin [get_bd_intf_pins -quiet base_add_0/M_AXI_GMEM]
+}
+if {[llength $m_axi_pin] == 0} {
+    puts "ERROR: Could not find AXI master interface m_axi_GMEM on base_add_0"
+    exit 1
+}
+
+set hp0_pin [get_bd_intf_pins -quiet processing_system7_0/S_AXI_HP0]
+if {[llength $hp0_pin] == 0} {
+    puts "ERROR: Could not find PS high-performance slave interface S_AXI_HP0"
+    exit 1
+}
+
+create_bd_cell -type ip -vlnv xilinx.com:ip:axi_interconnect:2.1 axi_hp0_interconnect
+set_property -dict [list CONFIG.NUM_SI {1} CONFIG.NUM_MI {1}] [get_bd_cells axi_hp0_interconnect]
+
+connect_bd_intf_net $m_axi_pin [get_bd_intf_pins axi_hp0_interconnect/S00_AXI]
+connect_bd_intf_net [get_bd_intf_pins axi_hp0_interconnect/M00_AXI] $hp0_pin
+
+set fclk0_pin [get_bd_pins -quiet processing_system7_0/FCLK_CLK0]
+if {[llength $fclk0_pin] == 0} {
+    puts "ERROR: Could not find processing_system7_0/FCLK_CLK0"
+    exit 1
+}
+
+foreach clk_pin_name {ACLK S00_ACLK M00_ACLK} {
+    set clk_pin [get_bd_pins -quiet axi_hp0_interconnect/$clk_pin_name]
+    if {[llength $clk_pin] != 0} {
+        connect_bd_net $fclk0_pin $clk_pin
+    }
+}
+
+set hp0_aclk_pin [get_bd_pins -quiet processing_system7_0/S_AXI_HP0_ACLK]
+if {[llength $hp0_aclk_pin] != 0} {
+    connect_bd_net $fclk0_pin $hp0_aclk_pin
+}
+
+set resetn_pin [get_bd_pins -quiet -hier -filter {NAME == peripheral_aresetn && DIR == O}]
+if {[llength $resetn_pin] == 0} {
+    puts "ERROR: Could not find processor system reset peripheral_aresetn"
+    exit 1
+}
+set resetn_pin [lindex $resetn_pin 0]
+
+foreach rst_pin_name {ARESETN S00_ARESETN M00_ARESETN} {
+    set rst_pin [get_bd_pins -quiet axi_hp0_interconnect/$rst_pin_name]
+    if {[llength $rst_pin] != 0} {
+        connect_bd_net $resetn_pin $rst_pin
+    }
+}
 
 assign_bd_address
 validate_bd_design
