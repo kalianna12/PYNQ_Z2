@@ -20,6 +20,26 @@ function File-Line($Path, $Pattern) {
     return ""
 }
 
+function Html-Escape($Value) {
+    return [System.Net.WebUtility]::HtmlEncode([string]$Value)
+}
+
+function Status-Badge($Status) {
+    switch ($Status) {
+        "PASS" { return '<span style="color:#008000;font-weight:bold;font-size:16px;">PASS</span>' }
+        "FOUND" { return '<span style="color:#008000;font-weight:bold;">FOUND</span>' }
+        "USED" { return '<span style="color:#b26a00;font-weight:bold;">USED</span>' }
+        "CHECK" { return '<span style="color:#b26a00;font-weight:bold;">CHECK</span>' }
+        "FAIL" { return '<span style="color:#cc0000;font-weight:bold;font-size:16px;">FAIL</span>' }
+        "MISSING" { return '<span style="color:#cc0000;font-weight:bold;">MISSING</span>' }
+        default { return "<span>$Status</span>" }
+    }
+}
+
+function Code-Block($Text, $Kind) {
+    return "~~~text`n$Text`n~~~"
+}
+
 $csimText = Read-AllTextSafe $CsimLog
 $rptText = Read-AllTextSafe $SynthRpt
 $hlsLogText = Read-AllTextSafe $HlsLog
@@ -59,11 +79,18 @@ if ($rptText -match "\|Total\s*\|\s*([0-9]+)\|\s*([0-9]+)\|\s*([0-9]+)\|\s*([0-9
 $ipComponent = Join-Path $IpDir "component.xml"
 $ipZip = Join-Path $IpDir "xilinx_com_hls_base_add_1_0.zip"
 $ipStatus = if ((Test-Path $ipComponent) -and (Test-Path $ipZip)) { "PASS" } elseif (Test-Path $IpDir) { "CHECK" } else { "MISSING" }
+$componentStatus = if (Test-Path $ipComponent) { "FOUND" } else { "MISSING" }
+$zipStatus = if (Test-Path $ipZip) { "FOUND" } else { "MISSING" }
 
 $registerLines = @()
 if (Test-Path $HwHeader) {
     $registerLines = Select-String -Path $HwHeader -Pattern "ADDR_.*0x" | ForEach-Object { $_.Line.Trim() }
 }
+
+$passLine = File-Line $CsimLog "PASS"
+$csimDoneLine = File-Line $CsimLog "CSim done"
+$csimKeyText = "$passLine`n$csimDoneLine".Trim()
+$regText = ($registerLines -join "`n").Trim()
 
 $now = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
 $content = @"
@@ -75,31 +102,26 @@ Generated: **$now**
 
 | Item | Status | What It Means |
 |---|---|---|
-| C simulation | **$csimStatus** | Testbench result |
-| Timing estimate | **$timingStatus** | Estimated clock should be smaller than target |
-| IP export | **$ipStatus** | Vivado can import this HLS IP |
-| Vivado 2018.2 date workaround | **$exportWorkaround** | Normal for old Vivado on modern dates |
+| C simulation | $(Status-Badge $csimStatus) | Testbench result |
+| Timing estimate | $(Status-Badge $timingStatus) | Estimated clock should be smaller than target |
+| IP export | $(Status-Badge $ipStatus) | Vivado can import this HLS IP |
+| Vivado 2018.2 date workaround | $(Status-Badge $exportWorkaround) | Normal for old Vivado on modern dates |
 
 ## 2. C Simulation
 
 Source file:
 
-~~~text
-$CsimLog
-~~~
+$(Code-Block $CsimLog "cmd")
 
 Key result:
 
-~~~text
-$(File-Line $CsimLog "PASS")
-$(File-Line $CsimLog "CSim done")
-~~~
+$(Code-Block $csimKeyText "good")
 
 ## 3. Timing
 
 | Clock | Target ns | Estimated ns | Result |
 |---|---:|---:|---|
-| ap_clk | $target | $estimated | **$timingStatus** |
+| ap_clk | **$target** | **$estimated** | $(Status-Badge $timingStatus) |
 
 Rule: **Estimated < Target** means the HLS estimate is acceptable.
 
@@ -107,7 +129,7 @@ Rule: **Estimated < Target** means the HLS estimate is acceptable.
 
 | Latency min | Latency max | Interval min | Interval max |
 |---:|---:|---:|---:|
-| $latencyMin | $latencyMax | $intervalMin | $intervalMax |
+| **$latencyMin** | **$latencyMax** | **$intervalMin** | **$intervalMax** |
 
 ## 5. Resource Estimate
 
@@ -117,24 +139,20 @@ $resourceTotal
 
 | File | Status |
 |---|---|
-| hls/base_add_prj/solution1/impl/ip/component.xml | **$(if (Test-Path $ipComponent) { "FOUND" } else { "MISSING" })** |
-| hls/base_add_prj/solution1/impl/ip/xilinx_com_hls_base_add_1_0.zip | **$(if (Test-Path $ipZip) { "FOUND" } else { "MISSING" })** |
+| hls/base_add_prj/solution1/impl/ip/component.xml | $(Status-Badge $componentStatus) |
+| hls/base_add_prj/solution1/impl/ip/xilinx_com_hls_base_add_1_0.zip | $(Status-Badge $zipStatus) |
 
 ## 7. AXI-Lite Register Addresses
 
 Read these addresses in Python with `ip.write()` and `ip.read()`.
 
-~~~text
-$($registerLines -join "`n")
-~~~
+$(Code-Block $regText "reg")
 
 ## 8. Next Step
 
 If this report shows **PASS**, run:
 
-~~~text
-FPGA: 2 Build Vivado Overlay
-~~~
+$(Code-Block "FPGA: 2 Build Vivado Overlay" "cmd")
 
 "@
 

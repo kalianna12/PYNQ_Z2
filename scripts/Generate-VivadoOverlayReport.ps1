@@ -27,6 +27,31 @@ function File-InfoLine($Path) {
     return "| $($f.Name) | FOUND | $($f.Length) | $($f.LastWriteTime.ToString('yyyy-MM-dd HH:mm:ss')) |"
 }
 
+function Html-Escape($Value) {
+    return [System.Net.WebUtility]::HtmlEncode([string]$Value)
+}
+
+function Status-Badge($Status) {
+    switch ($Status) {
+        "PASS" { return '<span style="color:#008000;font-weight:bold;font-size:16px;">PASS</span>' }
+        "FOUND" { return '<span style="color:#008000;font-weight:bold;">FOUND</span>' }
+        "CHECK" { return '<span style="color:#b26a00;font-weight:bold;">CHECK</span>' }
+        "FAIL" { return '<span style="color:#cc0000;font-weight:bold;font-size:16px;">FAIL</span>' }
+        "MISSING" { return '<span style="color:#cc0000;font-weight:bold;">MISSING</span>' }
+        default { return "<span>$Status</span>" }
+    }
+}
+
+function Code-Block($Text, $Kind) {
+    return "~~~text`n$Text`n~~~"
+}
+
+function File-InfoRow($Path) {
+    if (!(Test-Path $Path)) { return "| $Path | $(Status-Badge 'MISSING') | - | - |" }
+    $f = Get-Item $Path
+    return "| $($f.Name) | $(Status-Badge 'FOUND') | $($f.Length) | $($f.LastWriteTime.ToString('yyyy-MM-dd HH:mm:ss')) |"
+}
+
 $logText = Read-AllTextSafe $VivadoLog
 $timingText = Read-AllTextSafe $TimingRpt
 $utilText = Read-AllTextSafe $UtilRpt
@@ -52,6 +77,10 @@ if (Test-Path $UtilRpt) {
     $utilLine = (Select-String -Path $UtilRpt -Pattern "\| Slice LUTs|CLB LUTs|DSPs|Block RAM Tile" | Select-Object -First 8 | ForEach-Object { $_.Line.Trim() }) -join "`n"
 }
 
+$timingGoodLine = File-Line $TimingRpt "All user specified timing constraints are met"
+$uploadText = "pynq/base_add.bit`npynq/base_add.hwh`npynq/base_add_test.py`npynq/base_add_demo.ipynb"
+$xprStatus = if (Test-Path $XprFile) { "FOUND" } else { "MISSING" }
+
 $now = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
 $content = @"
 # Vivado Overlay Report
@@ -62,17 +91,17 @@ Generated: **$now**
 
 | Item | Status | What It Means |
 |---|---|---|
-| Bitstream generation | **$bitgenStatus** | `.bit` was created |
-| Copy bit to pynq folder | **$copyBitStatus** | `pynq/base_add.bit` updated |
-| Copy hwh to pynq folder | **$copyHwhStatus** | `pynq/base_add.hwh` updated |
-| Routed timing | **$timingStatus** | Final implemented timing result |
+| Bitstream generation | $(Status-Badge $bitgenStatus) | `.bit` was created |
+| Copy bit to pynq folder | $(Status-Badge $copyBitStatus) | `pynq/base_add.bit` updated |
+| Copy hwh to pynq folder | $(Status-Badge $copyHwhStatus) | `pynq/base_add.hwh` updated |
+| Routed timing | $(Status-Badge $timingStatus) | Final implemented timing result |
 
 ## 2. Output Files For PYNQ
 
 | File | Status | Bytes | Last Write Time |
 |---|---|---:|---|
-$(File-InfoLine $BitFile)
-$(File-InfoLine $HwhFile)
+$(File-InfoRow $BitFile)
+$(File-InfoRow $HwhFile)
 
 Upload these two files to the PYNQ board after PL hardware changes.
 
@@ -80,19 +109,15 @@ Upload these two files to the PYNQ board after PL hardware changes.
 
 Source file:
 
-~~~text
-$TimingRpt
-~~~
+$(Code-Block $TimingRpt "cmd")
 
 | WNS ns | TNS ns | WHS ns | THS ns | Result |
 |---:|---:|---:|---:|---|
-| $wns | $tns | $whs | $ths | **$timingStatus** |
+| **$wns** | **$tns** | **$whs** | **$ths** | $(Status-Badge $timingStatus) |
 
 Good sign:
 
-~~~text
-$(File-Line $TimingRpt "All user specified timing constraints are met")
-~~~
+$(Code-Block $timingGoodLine "good")
 
 Rule: **WNS > 0** means setup timing passes.
 
@@ -100,21 +125,17 @@ Rule: **WNS > 0** means setup timing passes.
 
 Source file:
 
-~~~text
-$UtilRpt
-~~~
+$(Code-Block $UtilRpt "cmd")
 
 Key lines:
 
-~~~text
-$utilLine
-~~~
+$(Code-Block $utilLine "warn")
 
 ## 5. Vivado Project
 
 | File | Status |
 |---|---|
-| build/vivado/base_add_overlay.xpr | **$(if (Test-Path $XprFile) { "FOUND" } else { "MISSING" })** |
+| build/vivado/base_add_overlay.xpr | $(Status-Badge $xprStatus) |
 
 Open this project only when you want to inspect the block design or timing in the GUI.
 
@@ -122,12 +143,7 @@ Open this project only when you want to inspect the block design or timing in th
 
 If this report shows **PASS**, upload these files to PYNQ:
 
-~~~text
-pynq/base_add.bit
-pynq/base_add.hwh
-pynq/base_add_test.py
-pynq/base_add_demo.ipynb
-~~~
+$(Code-Block $uploadText "cmd")
 
 Then run **base_add_test.py** on the board, or open the notebook in the board's browser Jupyter.
 

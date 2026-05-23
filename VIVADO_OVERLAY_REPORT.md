@@ -1,22 +1,22 @@
 ﻿# Vivado Overlay Report
 
-Generated: **2026-05-24 00:26:18**
+Generated: **2026-05-24 00:37:33**
 
 ## 1. Build Status
 
 | Item | Status | What It Means |
 |---|---|---|
-| Bitstream generation | **PASS** | .bit was created |
-| Copy bit to pynq folder | **PASS** | pynq/base_add.bit updated |
-| Copy hwh to pynq folder | **PASS** | pynq/base_add.hwh updated |
-| Routed timing | **PASS** | Final implemented timing result |
+| Bitstream generation | <span style="color:#008000;font-weight:bold;font-size:16px;">PASS</span> | .bit was created |
+| Copy bit to pynq folder | <span style="color:#008000;font-weight:bold;font-size:16px;">PASS</span> | pynq/base_add.bit updated |
+| Copy hwh to pynq folder | <span style="color:#008000;font-weight:bold;font-size:16px;">PASS</span> | pynq/base_add.hwh updated |
+| Routed timing | <span style="color:#008000;font-weight:bold;font-size:16px;">PASS</span> | Final implemented timing result |
 
 ## 2. Output Files For PYNQ
 
 | File | Status | Bytes | Last Write Time |
 |---|---|---:|---|
-| base_add.bit | FOUND | 4045674 | 2026-05-24 00:21:27 |
-| base_add.hwh | FOUND | 154667 | 2026-05-24 00:18:30 |
+| base_add.bit | <span style="color:#008000;font-weight:bold;">FOUND</span> | 4045674 | 2026-05-24 00:21:27 |
+| base_add.hwh | <span style="color:#008000;font-weight:bold;">FOUND</span> | 154667 | 2026-05-24 00:18:30 |
 
 Upload these two files to the PYNQ board after PL hardware changes.
 
@@ -30,7 +30,7 @@ G:\VSCODE_Save_Files\PYNQ_Z2Code\PYNQZ2_PSPL_Base\build\vivado\base_add_overlay.
 
 | WNS ns | TNS ns | WHS ns | THS ns | Result |
 |---:|---:|---:|---:|---|
-| 13.546 | 0.000 | 0.052 | 0.000 | **PASS** |
+| **13.546** | **0.000** | **0.052** | **0.000** | <span style="color:#008000;font-weight:bold;font-size:16px;">PASS</span> |
 
 Good sign:
 
@@ -61,7 +61,7 @@ Key lines:
 
 | File | Status |
 |---|---|
-| build/vivado/base_add_overlay.xpr | **FOUND** |
+| build/vivado/base_add_overlay.xpr | <span style="color:#008000;font-weight:bold;">FOUND</span> |
 
 Open this project only when you want to inspect the block design or timing in the GUI.
 

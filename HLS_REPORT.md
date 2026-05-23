@@ -1,15 +1,15 @@
 ﻿# HLS Report
 
-Generated: **2026-05-24 00:26:18**
+Generated: **2026-05-24 00:37:33**
 
 ## 1. Build Status
 
 | Item | Status | What It Means |
 |---|---|---|
-| C simulation | **PASS** | Testbench result |
-| Timing estimate | **PASS** | Estimated clock should be smaller than target |
-| IP export | **PASS** | Vivado can import this HLS IP |
-| Vivado 2018.2 date workaround | **USED** | Normal for old Vivado on modern dates |
+| C simulation | <span style="color:#008000;font-weight:bold;font-size:16px;">PASS</span> | Testbench result |
+| Timing estimate | <span style="color:#008000;font-weight:bold;font-size:16px;">PASS</span> | Estimated clock should be smaller than target |
+| IP export | <span style="color:#008000;font-weight:bold;font-size:16px;">PASS</span> | Vivado can import this HLS IP |
+| Vivado 2018.2 date workaround | <span style="color:#b26a00;font-weight:bold;">USED</span> | Normal for old Vivado on modern dates |
 
 ## 2. C Simulation
 
@@ -30,7 +30,7 @@ INFO: [SIM 1] CSim done with 0 errors.
 
 | Clock | Target ns | Estimated ns | Result |
 |---|---:|---:|---|
-| ap_clk | 10.00 | 8.510 | **PASS** |
+| ap_clk | **10.00** | **8.510** | <span style="color:#008000;font-weight:bold;font-size:16px;">PASS</span> |
 
 Rule: **Estimated < Target** means the HLS estimate is acceptable.
 
@@ -38,7 +38,7 @@ Rule: **Estimated < Target** means the HLS estimate is acceptable.
 
 | Latency min | Latency max | Interval min | Interval max |
 |---:|---:|---:|---:|
-| 2 | 2 | 2 | 2 |
+| **2** | **2** | **2** | **2** |
 
 ## 5. Resource Estimate
 
@@ -50,8 +50,8 @@ Rule: **Estimated < Target** means the HLS estimate is acceptable.
 
 | File | Status |
 |---|---|
-| hls/base_add_prj/solution1/impl/ip/component.xml | **FOUND** |
-| hls/base_add_prj/solution1/impl/ip/xilinx_com_hls_base_add_1_0.zip | **FOUND** |
+| hls/base_add_prj/solution1/impl/ip/component.xml | <span style="color:#008000;font-weight:bold;">FOUND</span> |
+| hls/base_add_prj/solution1/impl/ip/xilinx_com_hls_base_add_1_0.zip | <span style="color:#008000;font-weight:bold;">FOUND</span> |
 
 ## 7. AXI-Lite Register Addresses
 
