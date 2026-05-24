@@ -7,7 +7,6 @@ set board_part tul.com.tw:pynq-z2:part0:1.0
 
 set build_dir [file join $root_dir build vivado]
 set pynq_dir [file join $root_dir pynq]
-set hls_ip_repo [file join $root_dir hls base_add_prj solution1 impl ip]
 set rtl_src [list \
     [file join $root_dir rtl src led_ctrl_axi.v] \
     [file join $root_dir rtl src adc_ctrl_axi.v] \
@@ -21,12 +20,6 @@ set adc_xdc [file join $root_dir constraints pynq_adc_system.xdc]
 file mkdir $build_dir
 file mkdir $pynq_dir
 
-if {![file exists $hls_ip_repo]} {
-    puts "ERROR: HLS IP repo not found: $hls_ip_repo"
-    puts "Run VS Code task: FPGA: 1 Build HLS IP"
-    exit 1
-}
-
 create_project -force $project_name $build_dir -part $part_name
 set_property board_part $board_part [current_project]
 add_files -norecurse $rtl_src
@@ -36,7 +29,6 @@ if {[file exists $adc_xdc]} {
 } else {
     puts "WARNING: ADC XDC not found: $adc_xdc"
 }
-set_property ip_repo_paths [list $hls_ip_repo] [current_project]
 update_ip_catalog
 
 create_bd_design $design_name
@@ -47,28 +39,6 @@ set_property -dict [list CONFIG.PCW_USE_S_AXI_HP0 {1}] [get_bd_cells processing_
 apply_bd_automation -rule xilinx.com:bd_rule:processing_system7 \
     -config {make_external "FIXED_IO, DDR"} \
     [get_bd_cells processing_system7_0]
-
-set hls_ipdefs [get_ipdefs -all *base_add*]
-if {[llength $hls_ipdefs] == 0} {
-    puts "ERROR: Could not find HLS IP named base_add in $hls_ip_repo"
-    exit 1
-}
-
-set hls_vlnv [lindex $hls_ipdefs 0]
-create_bd_cell -type ip -vlnv $hls_vlnv base_add_0
-
-set ctrl_pin [get_bd_intf_pins -quiet base_add_0/s_axi_CTRL]
-if {[llength $ctrl_pin] == 0} {
-    set ctrl_pin [get_bd_intf_pins -quiet base_add_0/S_AXI_CTRL]
-}
-if {[llength $ctrl_pin] == 0} {
-    puts "ERROR: Could not find AXI-Lite control interface on base_add_0"
-    exit 1
-}
-
-apply_bd_automation -rule xilinx.com:bd_rule:axi4 \
-    -config {Master "/processing_system7_0/M_AXI_GP0" Clk "Auto"} \
-    $ctrl_pin
 
 create_bd_cell -type module -reference led_ctrl_axi led_ctrl_0
 
@@ -129,33 +99,51 @@ if {[llength $adc_axis_pin] == 0} {
     exit 1
 }
 
-set hls_stream_pin [get_bd_intf_pins -quiet base_add_0/sample_stream_V]
-if {[llength $hls_stream_pin] == 0} {
-    set hls_stream_pin [get_bd_intf_pins -quiet base_add_0/sample_stream_V_V]
+set axis_fifo_ipdefs [get_ipdefs -all *axis_data_fifo*]
+if {[llength $axis_fifo_ipdefs] == 0} {
+    puts "ERROR: Could not find AXIS Data FIFO IP in Vivado catalog"
+    exit 1
 }
-if {[llength $hls_stream_pin] == 0} {
-    set hls_stream_pin [get_bd_intf_pins -quiet base_add_0/sample_stream]
+set axis_fifo_vlnv [lindex $axis_fifo_ipdefs 0]
+create_bd_cell -type ip -vlnv $axis_fifo_vlnv axis_data_fifo_0
+set_property -dict [list \
+    CONFIG.TDATA_NUM_BYTES {4} \
+    CONFIG.FIFO_DEPTH {4096} \
+    CONFIG.HAS_TLAST {1} \
+    CONFIG.HAS_TKEEP {1} \
+] [get_bd_cells axis_data_fifo_0]
+
+set dma_ipdefs [get_ipdefs -all *axi_dma*]
+if {[llength $dma_ipdefs] == 0} {
+    puts "ERROR: Could not find AXI DMA IP in Vivado catalog"
+    exit 1
 }
-if {[llength $hls_stream_pin] == 0} {
-    set hls_stream_pin [get_bd_intf_pins -quiet base_add_0/SAMPLE_STREAM_V]
-}
-if {[llength $hls_stream_pin] == 0} {
-    set hls_stream_pin [get_bd_intf_pins -quiet base_add_0/SAMPLE_STREAM_V_V]
-}
-if {[llength $hls_stream_pin] == 0} {
-    puts "ERROR: Could not find AXI-Stream input interface sample_stream on base_add_0"
-    puts "Run VS Code task: FPGA: 1 Build HLS IP after updating hls/src/base_add.cpp"
+set dma_vlnv [lindex $dma_ipdefs 0]
+create_bd_cell -type ip -vlnv $dma_vlnv axi_dma_0
+set_property -dict [list \
+    CONFIG.c_include_sg {0} \
+    CONFIG.c_include_mm2s {0} \
+    CONFIG.c_include_s2mm {1} \
+    CONFIG.c_m_axi_s2mm_data_width {32} \
+    CONFIG.c_s2mm_burst_size {16} \
+] [get_bd_cells axi_dma_0]
+
+connect_bd_intf_net $adc_axis_pin [get_bd_intf_pins axis_data_fifo_0/S_AXIS]
+connect_bd_intf_net [get_bd_intf_pins axis_data_fifo_0/M_AXIS] [get_bd_intf_pins axi_dma_0/S_AXIS_S2MM]
+
+set dma_lite_pin [get_bd_intf_pins -quiet axi_dma_0/S_AXI_LITE]
+if {[llength $dma_lite_pin] == 0} {
+    puts "ERROR: Could not find AXI DMA S_AXI_LITE"
     exit 1
 }
 
-connect_bd_intf_net $adc_axis_pin $hls_stream_pin
+apply_bd_automation -rule xilinx.com:bd_rule:axi4 \
+    -config {Master "/processing_system7_0/M_AXI_GP0" Clk "Auto"} \
+    $dma_lite_pin
 
-set m_axi_pin [get_bd_intf_pins -quiet base_add_0/m_axi_GMEM]
-if {[llength $m_axi_pin] == 0} {
-    set m_axi_pin [get_bd_intf_pins -quiet base_add_0/M_AXI_GMEM]
-}
-if {[llength $m_axi_pin] == 0} {
-    puts "ERROR: Could not find AXI master interface m_axi_GMEM on base_add_0"
+set dma_s2mm_pin [get_bd_intf_pins -quiet axi_dma_0/M_AXI_S2MM]
+if {[llength $dma_s2mm_pin] == 0} {
+    puts "ERROR: Could not find AXI DMA M_AXI_S2MM"
     exit 1
 }
 
@@ -168,7 +156,7 @@ if {[llength $hp0_pin] == 0} {
 create_bd_cell -type ip -vlnv xilinx.com:ip:axi_interconnect:2.1 axi_hp0_interconnect
 set_property -dict [list CONFIG.NUM_SI {1} CONFIG.NUM_MI {1}] [get_bd_cells axi_hp0_interconnect]
 
-connect_bd_intf_net $m_axi_pin [get_bd_intf_pins axi_hp0_interconnect/S00_AXI]
+connect_bd_intf_net $dma_s2mm_pin [get_bd_intf_pins axi_hp0_interconnect/S00_AXI]
 connect_bd_intf_net [get_bd_intf_pins axi_hp0_interconnect/M00_AXI] $hp0_pin
 
 set fclk0_pin [get_bd_pins -quiet processing_system7_0/FCLK_CLK0]
@@ -178,8 +166,12 @@ if {[llength $fclk0_pin] == 0} {
 }
 
 foreach clk_target {
-    base_add_0/ap_clk
     adc_capture_0/S_AXI_ACLK
+    axi_dma_0/s_axi_lite_aclk
+    axi_dma_0/m_axi_s2mm_aclk
+    axis_data_fifo_0/s_axis_aclk
+    axis_data_fifo_0/m_axis_aclk
+    axis_data_fifo_0/aclk
 } {
     set clk_pin [get_bd_pins -quiet $clk_target]
     if {[llength $clk_pin] != 0 && [llength [get_bd_nets -quiet -of_objects $clk_pin]] == 0} {
@@ -207,8 +199,11 @@ if {[llength $resetn_pin] == 0} {
 set resetn_pin [lindex $resetn_pin 0]
 
 foreach rst_target {
-    base_add_0/ap_rst_n
     adc_capture_0/S_AXI_ARESETN
+    axi_dma_0/axi_resetn
+    axis_data_fifo_0/s_axis_aresetn
+    axis_data_fifo_0/m_axis_aresetn
+    axis_data_fifo_0/aresetn
 } {
     set rst_pin [get_bd_pins -quiet $rst_target]
     if {[llength $rst_pin] != 0 && [llength [get_bd_nets -quiet -of_objects $rst_pin]] == 0} {
@@ -259,4 +254,3 @@ if {[file exists $hwh_file]} {
 }
 
 exit
-

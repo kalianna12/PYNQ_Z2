@@ -82,6 +82,7 @@ module adc_ctrl_axi #(
     input wire writer_busy,
     input wire writer_done,
     input wire error,
+    input wire core_done,
     input wire data_changed_a,
     input wire data_changed_b,
     input wire [11:0] latest_a,
@@ -91,6 +92,12 @@ module adc_ctrl_axi #(
     input wire [31:0] saved_counter,
     input wire [31:0] last_sample_word,
     input wire [2:0] debug_state,
+    input wire [31:0] axis_sent_count,
+    input wire [31:0] axis_stall_count,
+    input wire [31:0] tlast_count,
+    input wire fifo_backpressure_seen,
+    input wire [31:0] dropped_sample_count,
+    input wire capture_done_latched,
     input wire [31:0] error_flags_in,
 
     output reg [31:0] error_flags_latched,
@@ -120,6 +127,13 @@ module adc_ctrl_axi #(
     localparam [REG_INDEX_BITS-1:0] REG_SAVED_COUNTER = 5'h12;
     localparam [REG_INDEX_BITS-1:0] REG_LAST_SAMPLE_WORD = 5'h13;
     localparam [REG_INDEX_BITS-1:0] REG_DEBUG_STATE = 5'h14;
+    localparam [REG_INDEX_BITS-1:0] REG_AXIS_SENT_COUNT = 5'h15;
+    localparam [REG_INDEX_BITS-1:0] REG_AXIS_STALL_COUNT = 5'h16;
+    localparam [REG_INDEX_BITS-1:0] REG_TLAST_COUNT = 5'h17;
+    localparam [REG_INDEX_BITS-1:0] REG_FIFO_BACKPRESSURE = 5'h18;
+    localparam [REG_INDEX_BITS-1:0] REG_DROPPED_SAMPLE_COUNT = 5'h19;
+    localparam [REG_INDEX_BITS-1:0] REG_CAPTURE_DONE_LATCHED = 5'h1A;
+    localparam [REG_INDEX_BITS-1:0] REG_CORE_DONE = 5'h1B;
 
     reg [C_S_AXI_ADDR_WIDTH-1:0] axi_awaddr;
     reg [C_S_AXI_ADDR_WIDTH-1:0] axi_araddr;
@@ -135,7 +149,11 @@ module adc_ctrl_axi #(
     assign write_index = axi_awaddr[ADDR_LSB + REG_INDEX_BITS - 1:ADDR_LSB];
     assign read_index = axi_araddr[ADDR_LSB + REG_INDEX_BITS - 1:ADDR_LSB];
     assign status_word = {
-        19'd0,
+        15'd0,
+        core_done,
+        capture_done_latched,
+        fifo_backpressure_seen,
+        (dropped_sample_count != 32'd0),
         data_changed_b,
         data_changed_a,
         error,
@@ -283,6 +301,13 @@ module adc_ctrl_axi #(
                 REG_SAVED_COUNTER: S_AXI_RDATA <= saved_counter;
                 REG_LAST_SAMPLE_WORD: S_AXI_RDATA <= last_sample_word;
                 REG_DEBUG_STATE: S_AXI_RDATA <= {29'd0, debug_state};
+                REG_AXIS_SENT_COUNT: S_AXI_RDATA <= axis_sent_count;
+                REG_AXIS_STALL_COUNT: S_AXI_RDATA <= axis_stall_count;
+                REG_TLAST_COUNT: S_AXI_RDATA <= tlast_count;
+                REG_FIFO_BACKPRESSURE: S_AXI_RDATA <= {31'd0, fifo_backpressure_seen};
+                REG_DROPPED_SAMPLE_COUNT: S_AXI_RDATA <= dropped_sample_count;
+                REG_CAPTURE_DONE_LATCHED: S_AXI_RDATA <= {31'd0, capture_done_latched};
+                REG_CORE_DONE: S_AXI_RDATA <= {31'd0, core_done};
                 default: S_AXI_RDATA <= 32'h00000000;
             endcase
         end else if (S_AXI_RVALID && S_AXI_RREADY) begin
@@ -296,7 +321,7 @@ module adc_ctrl_axi #(
         end else if (led_ps_override) begin
             leds_4bits_tri_o <= led_value;
         end else begin
-            leds_4bits_tri_o <= {|error_flags_latched, done, busy, adc_clk_seen};
+            leds_4bits_tri_o <= {error, done, busy, adc_clk_seen};
         end
     end
 endmodule

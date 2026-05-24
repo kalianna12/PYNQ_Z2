@@ -2,8 +2,7 @@
 
 module ad9226_capture_core #(
     parameter integer MAX_SAMPLE_N = 65536,
-    parameter integer SAMPLE_DELAY_MAX = 31,
-    parameter integer USE_ODDR_FAST = 0
+    parameter integer SAMPLE_DELAY_MAX = 31
 ) (
     input wire clk_125m,
     input wire resetn,
@@ -133,6 +132,8 @@ module ad9226_capture_core #(
     assign adc_a_clk = enable ? adc_clk_div_r : 1'b0;
     assign adc_b_clk = enable ? adc_clk_div_r : 1'b0;
 `else
+    // ODDR is used here as an output register for the divided ADC clock.
+    // This is not the future fast-clock mode with D1=1'b1 and D2=1'b0.
     ODDR #(
         .DDR_CLK_EDGE("SAME_EDGE"),
         .INIT(1'b0),

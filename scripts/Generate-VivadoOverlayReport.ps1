@@ -9,6 +9,13 @@ $PynqDir = Join-Path $Root "pynq"
 $BitFile = Join-Path $Root "pynq\base_add.bit"
 $HwhFile = Join-Path $Root "pynq\base_add.hwh"
 $XprFile = Join-Path $Root "build\vivado\base_add_overlay.xpr"
+$BuildTcl = Join-Path $Root "vivado\build.tcl"
+$RecommendedPynqFiles = @(
+    "base_add.bit",
+    "base_add.hwh",
+    "ad9226_capture_smoke.py",
+    "ad9226_capture_demo.ipynb"
+)
 
 function Read-AllTextSafe($Path) {
     if (Test-Path $Path) { return [System.IO.File]::ReadAllText($Path) }
@@ -36,6 +43,7 @@ function Status-Badge($Status) {
     switch ($Status) {
         "PASS" { return '<span style="color:#008000;font-weight:bold;font-size:16px;">PASS</span>' }
         "FOUND" { return '<span style="color:#008000;font-weight:bold;">FOUND</span>' }
+        "OPTIONAL" { return '<span style="color:#64748b;font-weight:bold;">OPTIONAL</span>' }
         "CHECK" { return '<span style="color:#b26a00;font-weight:bold;">CHECK</span>' }
         "FAIL" { return '<span style="color:#cc0000;font-weight:bold;font-size:16px;">FAIL</span>' }
         "MISSING" { return '<span style="color:#cc0000;font-weight:bold;">MISSING</span>' }
@@ -66,23 +74,56 @@ function Pynq-FileRows($Dir) {
 
 function Pynq-UploadText($Dir) {
     if (!(Test-Path $Dir)) { return "pynq folder not found" }
-    $files = Get-ChildItem -Path $Dir -File |
-        Where-Object { $_.Extension -in ".bit", ".hwh", ".py", ".ipynb" } |
-        Sort-Object Extension, Name
+    $files = @()
+    foreach ($name in $RecommendedPynqFiles) {
+        $path = Join-Path $Dir $name
+        if (Test-Path $path) {
+            $files += Get-Item $path
+        }
+    }
     if (!$files) { return "No board files found" }
     return (($files | ForEach-Object { "pynq/$($_.Name)" }) -join "`n")
+}
+
+function Recommended-PynqRows($Dir) {
+    if (!(Test-Path $Dir)) { return "| $Dir | $(Status-Badge 'MISSING') | - | - |" }
+    return (($RecommendedPynqFiles | ForEach-Object {
+        $path = Join-Path $Dir $_
+        if (Test-Path $path) {
+            $f = Get-Item $path
+            "| $($f.Name) | $(Status-Badge 'FOUND') | $($f.Length) | $($f.LastWriteTime.ToString('yyyy-MM-dd HH:mm:ss')) |"
+        } else {
+            "| $_ | $(Status-Badge 'MISSING') | - | - |"
+        }
+    }) -join "`n")
 }
 
 $logText = Read-AllTextSafe $VivadoLog
 $timingText = Read-AllTextSafe $TimingRpt
 $utilText = Read-AllTextSafe $UtilRpt
 $hwhText = Read-AllTextSafe $HwhFile
+$buildText = Read-AllTextSafe $BuildTcl
 
-$bitgenStatus = if ($logText -match "Bitgen Completed Successfully") { "PASS" } elseif (Test-Path $VivadoLog) { "CHECK" } else { "MISSING" }
-$copyBitStatus = if ($logText -match "Copied bitstream") { "PASS" } else { "CHECK" }
-$copyHwhStatus = if ($logText -match "Copied handoff") { "PASS" } else { "CHECK" }
+$bitgenStatus = if (Test-Path $BitFile) { "PASS" } elseif ($logText -match "Bitgen Completed Successfully") { "PASS" } elseif (Test-Path $VivadoLog) { "CHECK" } else { "MISSING" }
+$copyBitStatus = if (Test-Path $BitFile) { "PASS" } elseif ($logText -match "Copied bitstream") { "PASS" } else { "CHECK" }
+$copyHwhStatus = if (Test-Path $HwhFile) { "PASS" } elseif ($logText -match "Copied handoff") { "PASS" } else { "CHECK" }
 $ledCtrlStatus = if ($hwhText -match "led_ctrl_0|led_ctrl_axi") { "PASS" } elseif (Test-Path $HwhFile) { "CHECK" } else { "MISSING" }
 $adcCaptureStatus = if ($hwhText -match "adc_capture_0|adc_capture_system") { "PASS" } elseif (Test-Path $HwhFile) { "CHECK" } else { "MISSING" }
+$dmaStatus = if ($hwhText -match "INSTANCE=`"axi_dma_0`"") { "PASS" } elseif (Test-Path $HwhFile) { "CHECK" } else { "MISSING" }
+$axisFifoStatus = if ($hwhText -match "INSTANCE=`"axis_data_fifo_0`"") { "PASS" } elseif (Test-Path $HwhFile) { "CHECK" } else { "MISSING" }
+$axisToFifoStatus = if (($hwhText -match "adc_capture_0_M_AXIS_SAMPLE_TDATA") -and ($hwhText -match "axis_data_fifo_0")) { "PASS" } elseif (Test-Path $HwhFile) { "CHECK" } else { "MISSING" }
+$fifoToDmaStatus = if (($hwhText -match "axis_data_fifo_0_M_AXIS") -and ($hwhText -match "S_AXIS_S2MM")) { "PASS" } elseif (Test-Path $HwhFile) { "CHECK" } else { "MISSING" }
+$dmaHpStatus = if (($hwhText -match "axi_dma_0_M_AXI_S2MM") -and ($hwhText -match "S_AXI_HP0")) { "PASS" } elseif (Test-Path $HwhFile) { "CHECK" } else { "MISSING" }
+$dmaBdStatus = if (($buildText -match "create_bd_cell.*axi_dma_0") -and ($buildText -match "axi_dma_0/S_AXIS_S2MM")) { "PASS" } elseif (Test-Path $BuildTcl) { "CHECK" } else { "MISSING" }
+$axisFifoBdStatus = if (($buildText -match "create_bd_cell.*axis_data_fifo_0") -and ($buildText -match "axis_data_fifo_0/S_AXIS") -and ($buildText -match "axis_data_fifo_0/M_AXIS")) { "PASS" } elseif (Test-Path $BuildTcl) { "CHECK" } else { "MISSING" }
+$dmaLiteGpStatus = if (($hwhText -match "INSTANCE=`"axi_dma_0`"") -and ($hwhText -match "MASTERBUSINTERFACE=`"M_AXI_GP0`"") -and ($hwhText -match "SLAVEBUSINTERFACE=`"S_AXI_LITE`"")) { "PASS" } elseif (Test-Path $HwhFile) { "CHECK" } else { "MISSING" }
+$dmaIrqStatus = if (($buildText -match "s2mm_introut.*IRQ_F2P") -or ($hwhText -match "s2mm_introut.*IRQ_F2P")) { "PASS" } else { "OPTIONAL" }
+$fclk0Hz = ""
+if ($hwhText -match 'PCW_CLK0_FREQ"\s+VALUE="([^"]+)"') {
+    $fclk0Hz = $Matches[1]
+}
+$fclkStatus = if ($fclk0Hz) { "FOUND" } elseif (Test-Path $HwhFile) { "CHECK" } else { "MISSING" }
+$fclkNote = if ($fclk0Hz) { "HWH declares FCLK_CLK0 as $fclk0Hz Hz. PYNQ scripts may use measured PL_CLK_HZ; verify before interpreting sample-rate prints." } else { "Could not read FCLK_CLK0 frequency from hwh." }
 
 $wns = ""
 $tns = ""
@@ -120,17 +161,35 @@ Generated: **$now**
 | Copy hwh to pynq folder | $(Status-Badge $copyHwhStatus) | `pynq/base_add.hwh` updated |
 | RTL LED controller in HWH | $(Status-Badge $ledCtrlStatus) | PS can discover the AXI-Lite LED IP from `.hwh` |
 | AD9226 capture controller in HWH | $(Status-Badge $adcCaptureStatus) | PS can discover adc_capture_0 from hwh |
+| AXI DMA S2MM in HWH | $(Status-Badge $dmaStatus) | PS can discover axi_dma_0 and use recvchannel |
+| AXI DMA in BD script | $(Status-Badge $dmaBdStatus) | build.tcl creates axi_dma_0 and connects S2MM stream |
+| AXIS Data FIFO in HWH | $(Status-Badge $axisFifoStatus) | Xilinx FIFO buffers capture stream before DMA |
+| AXIS Data FIFO in BD script | $(Status-Badge $axisFifoBdStatus) | build.tcl creates axis_data_fifo_0 between capture and DMA |
+| adc_capture_0 to AXIS FIFO | $(Status-Badge $axisToFifoStatus) | M_AXIS_SAMPLE is wired into axis_data_fifo_0/S_AXIS |
+| AXIS FIFO to DMA S2MM | $(Status-Badge $fifoToDmaStatus) | axis_data_fifo_0/M_AXIS is wired into axi_dma_0/S_AXIS_S2MM |
+| DMA S2MM to PS HP0 | $(Status-Badge $dmaHpStatus) | axi_dma_0/M_AXI_S2MM reaches PS DDR through S_AXI_HP0 |
+| DMA S_AXI_LITE to PS GP0 | $(Status-Badge $dmaLiteGpStatus) | PS can configure DMA registers through M_AXI_GP0 |
+| DMA S2MM interrupt | $(Status-Badge $dmaIrqStatus) | Optional; current PYNQ flow can use polling/wait |
+| FCLK_CLK0 in HWH | $(Status-Badge $fclkStatus) | $fclkNote |
 | Routed timing | $(Status-Badge $timingStatus) | Final implemented timing result |
 
-## 2. Output Files For PYNQ
+## 2. Recommended DMA Files For PYNQ
+
+These are the files to copy when validating the current DMA capture path.
+
+| File | Status | Bytes | Last Write Time |
+|---|---|---:|---|
+$(Recommended-PynqRows $PynqDir)
+
+## 3. Board Files Present
 
 | File | Status | Bytes | Last Write Time |
 |---|---|---:|---|
 $(Pynq-FileRows $PynqDir)
 
-Upload these files to the PYNQ board after PL hardware changes.
+Legacy notebooks may still exist in this folder for reference. Do not use them for DMA validation if they access `overlay.base_add_0`.
 
-## 3. Timing Summary
+## 4. Timing Summary
 
 Source file:
 
@@ -146,7 +205,7 @@ $(Code-Block $timingGoodLine "good")
 
 Rule: **WNS > 0** means setup timing passes.
 
-## 4. Resource Report
+## 5. Resource Report
 
 Source file:
 
@@ -156,7 +215,7 @@ Key lines:
 
 $(Code-Block $utilLine "warn")
 
-## 5. Vivado Project
+## 6. Vivado Project
 
 | File | Status |
 |---|---|
@@ -164,14 +223,18 @@ $(Code-Block $utilLine "warn")
 
 Open this project only when you want to inspect the block design or timing in the GUI.
 
-## 6. Next Step
+## 7. Next Step
 
 If this report shows **PASS**, upload these files to PYNQ:
 
 $(Code-Block $uploadText "cmd")
 
-Then run one of the existing Python scripts on the board, or open an existing
-notebook in the board's browser Jupyter.
+For the DMA capture path, use:
+
+$(Code-Block "pynq/ad9226_capture_smoke.py`npynq/ad9226_capture_demo.ipynb" "cmd")
+
+Do not use old notebooks that access `overlay.base_add_0` when validating DMA.
+Those belong to the previous HLS-writer path and can give a false PASS.
 
 "@
 
@@ -196,5 +259,9 @@ if ($timingStatus -eq "PASS") {
 }
 Write-Host "bit file    : $BitFile"
 Write-Host "hwh file    : $HwhFile"
+Write-Host "DMA IP      : $dmaStatus"
+Write-Host "AXIS FIFO   : $axisFifoStatus"
+Write-Host "DMA path    : capture=$axisToFifoStatus fifo=$fifoToDmaStatus hp0=$dmaHpStatus"
+Write-Host "DMA BD      : dma=$dmaBdStatus fifo=$axisFifoBdStatus lite=$dmaLiteGpStatus irq=$dmaIrqStatus"
 Write-Host "Next step   : upload listed pynq files to PYNQ, then run a script or notebook"
 Write-Host "===========================================" -ForegroundColor Cyan

@@ -48,17 +48,28 @@ module tb_ad9226_capture_chain;
     wire [31:0] tdata;
     wire tvalid;
     reg tready = 1'b1;
+    wire tlast;
+    wire [3:0] tkeep;
     wire fifo_full;
     wire fifo_empty;
     wire fifo_overflow;
     wire fifo_underflow;
     wire [31:0] fifo_level;
     wire [31:0] fifo_last_word;
+    wire [31:0] axis_sent_count;
+    wire [31:0] axis_stall_count;
+    wire [31:0] tlast_count;
+    wire fifo_backpressure_seen;
+    wire [31:0] dropped_sample_count;
+    wire capture_done_latched;
 
     integer read_count = 0;
     integer mode2_errors = 0;
     integer real_errors = 0;
     integer overflow_clk_edges = 0;
+    reg [31:0] held_tdata = 32'd0;
+    reg held_tlast = 1'b0;
+    reg [3:0] held_tkeep = 4'd0;
     reg seen_mode2 = 1'b0;
     reg seen_real = 1'b0;
     reg [31:0] saved_after_pre_delay = 32'd0;
@@ -66,8 +77,7 @@ module tb_ad9226_capture_chain;
 
     ad9226_capture_core #(
         .MAX_SAMPLE_N(65536),
-        .SAMPLE_DELAY_MAX(31),
-        .USE_ODDR_FAST(0)
+        .SAMPLE_DELAY_MAX(31)
     ) capture_i (
         .clk_125m(clk),
         .resetn(resetn),
@@ -122,15 +132,24 @@ module tb_ad9226_capture_chain;
         .sample_b(sample_b),
         .flags_a(flags_a),
         .flags_b(flags_b),
+        .target_count(sample_count_cfg),
         .sample_word_tdata(tdata),
         .sample_word_tvalid(tvalid),
         .sample_word_tready(tready),
+        .sample_word_tlast(tlast),
+        .sample_word_tkeep(tkeep),
         .full(fifo_full),
         .empty(fifo_empty),
         .overflow(fifo_overflow),
         .underflow(fifo_underflow),
         .fifo_level(fifo_level),
-        .last_sample_word(fifo_last_word)
+        .last_sample_word(fifo_last_word),
+        .axis_sent_count(axis_sent_count),
+        .axis_stall_count(axis_stall_count),
+        .tlast_count(tlast_count),
+        .fifo_backpressure_seen(fifo_backpressure_seen),
+        .dropped_sample_count(dropped_sample_count),
+        .capture_done_latched(capture_done_latched)
     );
 
     always #4 clk = ~clk;
@@ -158,6 +177,9 @@ module tb_ad9226_capture_chain;
                 if (tdata[27:16] !== 12'd0) begin
                     real_errors = real_errors + 1;
                 end
+            end
+            if (tkeep !== 4'hF) begin
+                mode2_errors = mode2_errors + 1;
             end
             read_count = read_count + 1;
         end
@@ -205,8 +227,8 @@ module tb_ad9226_capture_chain;
         pulse_start();
         wait (done);
         repeat (8) @(posedge clk);
-        if (!seen_mode2 || saved_counter !== 32'd8 || read_count != 8 || mode2_errors != 0) begin
-            $display("FINAL: FAIL mode2 fake stream saved=%0d reads=%0d errors=%0d", saved_counter, read_count, mode2_errors);
+        if (!seen_mode2 || saved_counter !== 32'd8 || read_count != 8 || mode2_errors != 0 || tlast_count !== 32'd1 || axis_sent_count !== 32'd8) begin
+            $display("FINAL: FAIL mode2 fake stream saved=%0d reads=%0d sent=%0d tlast=%0d errors=%0d", saved_counter, read_count, axis_sent_count, tlast_count, mode2_errors);
             $finish;
         end
         if (sample_counter !== saved_counter) begin
@@ -241,10 +263,27 @@ module tb_ad9226_capture_chain;
         overflow_clk_edges = 0;
         pulse_clear();
         pulse_start();
+        wait (tvalid);
+        @(posedge clk);
+        held_tdata = tdata;
+        held_tlast = tlast;
+        held_tkeep = tkeep;
+        repeat (5) begin
+            @(posedge clk);
+            if (!tvalid || tdata !== held_tdata || tlast !== held_tlast || tkeep !== held_tkeep) begin
+                $display("FINAL: FAIL tready stall stability tvalid=%0d tdata=%h/%h tlast=%0d/%0d tkeep=%h/%h",
+                         tvalid, tdata, held_tdata, tlast, held_tlast, tkeep, held_tkeep);
+                $finish;
+            end
+        end
         wait (done);
         repeat (32) @(posedge clk);
         if (!fifo_overflow || !fifo_full || overflow_clk_edges == 0) begin
             $display("FINAL: FAIL overflow overflow=%0d full=%0d clk_edges=%0d", fifo_overflow, fifo_full, overflow_clk_edges);
+            $finish;
+        end
+        if (!fifo_backpressure_seen || axis_stall_count == 0 || dropped_sample_count == 0) begin
+            $display("FINAL: FAIL overflow counters backpressure=%0d stalls=%0d dropped=%0d", fifo_backpressure_seen, axis_stall_count, dropped_sample_count);
             $finish;
         end
         tready <= 1'b1;

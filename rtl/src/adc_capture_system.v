@@ -66,7 +66,11 @@ module adc_capture_system #(
     (* X_INTERFACE_INFO = "xilinx.com:interface:axis:1.0 M_AXIS_SAMPLE TVALID" *)
     output wire M_AXIS_SAMPLE_TVALID,
     (* X_INTERFACE_INFO = "xilinx.com:interface:axis:1.0 M_AXIS_SAMPLE TREADY" *)
-    input wire M_AXIS_SAMPLE_TREADY
+    input wire M_AXIS_SAMPLE_TREADY,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:axis:1.0 M_AXIS_SAMPLE TLAST" *)
+    output wire M_AXIS_SAMPLE_TLAST,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:axis:1.0 M_AXIS_SAMPLE TKEEP" *)
+    output wire [3:0] M_AXIS_SAMPLE_TKEEP
 );
     wire enable;
     wire start_pulse;
@@ -108,14 +112,24 @@ module adc_capture_system #(
     wire [31:0] sample_word_tdata;
     wire sample_word_tvalid;
     wire sample_word_tready;
+    wire sample_word_tlast;
+    wire [3:0] sample_word_tkeep;
     wire fifo_full;
     wire fifo_empty;
     wire fifo_overflow;
     wire fifo_underflow;
     wire [31:0] fifo_level;
     wire [31:0] fifo_last_sample_word;
+    wire [31:0] axis_sent_count;
+    wire [31:0] axis_stall_count;
+    wire [31:0] tlast_count;
+    wire fifo_backpressure_seen;
+    wire [31:0] dropped_sample_count;
+    wire capture_done_latched;
+    wire [31:0] axis_target_count;
     wire [31:0] error_flags_in;
     wire [31:0] error_flags_latched;
+    wire fatal_error;
     reg adc_a_ora_d0;
     reg adc_a_ora_d1;
     reg adc_b_orb_d0;
@@ -138,8 +152,17 @@ module adc_capture_system #(
     assign sample_word_tready = M_AXIS_SAMPLE_TREADY;
     assign M_AXIS_SAMPLE_TDATA = sample_word_tdata;
     assign M_AXIS_SAMPLE_TVALID = sample_word_tvalid;
+    assign M_AXIS_SAMPLE_TLAST = sample_word_tlast;
+    assign M_AXIS_SAMPLE_TKEEP = sample_word_tkeep;
+    assign axis_target_count =
+        (sample_count_cfg < 32'd1) ? 32'd1 :
+        (sample_count_cfg > 32'd65536) ? 32'd65536 :
+        sample_count_cfg;
+    assign fatal_error = fifo_overflow || (dropped_sample_count != 32'd0) || config_error;
     assign error_flags_in = {
-        26'd0,
+        24'd0,
+        fifo_backpressure_seen,
+        (dropped_sample_count != 32'd0),
         config_error,
         1'b0,
         (near_rail_b | adc_b_orb_d1),
@@ -190,7 +213,7 @@ module adc_capture_system #(
         .led_value(led_value),
         .led_ps_override(led_ps_override),
         .busy(busy),
-        .done(done),
+        .done(capture_done_latched),
         .adc_clk_seen(adc_clk_seen),
         .fifo_full(fifo_full),
         .fifo_empty(fifo_empty),
@@ -199,7 +222,8 @@ module adc_capture_system #(
         .near_rail_b(near_rail_b),
         .writer_busy(1'b0),
         .writer_done(1'b0),
-        .error(|error_flags_latched),
+        .error(fatal_error),
+        .core_done(done),
         .data_changed_a(data_changed_a),
         .data_changed_b(data_changed_b),
         .latest_a(latest_a),
@@ -209,6 +233,12 @@ module adc_capture_system #(
         .saved_counter(saved_counter),
         .last_sample_word(fifo_last_sample_word),
         .debug_state(debug_state),
+        .axis_sent_count(axis_sent_count),
+        .axis_stall_count(axis_stall_count),
+        .tlast_count(tlast_count),
+        .fifo_backpressure_seen(fifo_backpressure_seen),
+        .dropped_sample_count(dropped_sample_count),
+        .capture_done_latched(capture_done_latched),
         .error_flags_in(error_flags_in),
         .error_flags_latched(error_flags_latched),
         .leds_4bits_tri_o(unused_adc_leds)
@@ -216,8 +246,7 @@ module adc_capture_system #(
 
     ad9226_capture_core #(
         .MAX_SAMPLE_N(65536),
-        .SAMPLE_DELAY_MAX(31),
-        .USE_ODDR_FAST(0)
+        .SAMPLE_DELAY_MAX(31)
     ) capture_i (
         .clk_125m(S_AXI_ACLK),
         .resetn(S_AXI_ARESETN),
@@ -261,7 +290,6 @@ module adc_capture_system #(
 
     adc_sample_fifo #(
         .DATA_WIDTH(32),
-        .FIFO_DEPTH(4096),
         .ADDR_WIDTH(12)
     ) fifo_i (
         .clk(S_AXI_ACLK),
@@ -272,14 +300,23 @@ module adc_capture_system #(
         .sample_b(sample_b),
         .flags_a(flags_a),
         .flags_b(flags_b),
+        .target_count(axis_target_count),
         .sample_word_tdata(sample_word_tdata),
         .sample_word_tvalid(sample_word_tvalid),
         .sample_word_tready(sample_word_tready),
+        .sample_word_tlast(sample_word_tlast),
+        .sample_word_tkeep(sample_word_tkeep),
         .full(fifo_full),
         .empty(fifo_empty),
         .overflow(fifo_overflow),
         .underflow(fifo_underflow),
         .fifo_level(fifo_level),
-        .last_sample_word(fifo_last_sample_word)
+        .last_sample_word(fifo_last_sample_word),
+        .axis_sent_count(axis_sent_count),
+        .axis_stall_count(axis_stall_count),
+        .tlast_count(tlast_count),
+        .fifo_backpressure_seen(fifo_backpressure_seen),
+        .dropped_sample_count(dropped_sample_count),
+        .capture_done_latched(capture_done_latched)
     );
 endmodule

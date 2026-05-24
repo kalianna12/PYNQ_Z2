@@ -1,99 +1,212 @@
-PYNQ-Z2 PS/PL 学习流程
-1. 每个部分是什么意思
+# PYNQ-Z2 AD9226 DMA Development Flow
 
-PS 指的是 PYNQ-Z2 板卡上运行 Linux 和 Python 的 ARM 处理器。
+This project currently uses an AXI DMA receive path for AD9226 capture.
 
-PL 指的是 FPGA 逻辑资源。你的 HLS C/C++ 或 Verilog 代码会被转换成 PL 内部的硬件电路。
+## 1. Current Architecture
 
-常见的入门流程是：
+```text
+PS / PYNQ Python
+  -> AXI-Lite config registers in adc_capture_0
+  -> RTL AD9226 capture or RTL fake stream
+  -> 32-bit AXI-Stream packed sample words
+  -> Xilinx AXIS Data FIFO
+  -> AXI DMA S2MM
+  -> PS DDR buffer
+  -> numpy / matplotlib / CSV
+```
 
-HLS C/C++ -> HLS IP -> Vivado block design -> bit/hwh -> PYNQ Python
+The older HLS `base_add_0` writer path is legacy. It may still exist in the HLS folder and HLS report, but it is not the current DMA validation path.
 
-也就是：
+## 2. Files You Usually Edit
 
-HLS C/C++ -> HLS IP 核 -> Vivado 块设计 -> bit/hwh 文件 -> PYNQ Python 调用
-2. 通常需要编辑的文件
+RTL hardware:
 
-最常编辑的是这些文件：
+```text
+rtl/src/ad9226_capture_core.v
+rtl/src/adc_sample_fifo.v
+rtl/src/adc_capture_system.v
+rtl/src/adc_ctrl_axi.v
+rtl/tb/tb_ad9226_capture_chain.v
+```
 
-hls/src/base_add.cpp
-hls/src/base_add.h
-hls/tb/test_base_add.cpp
-pynq/base_add_test.py
+Vivado integration:
 
-生成文件位于：
+```text
+vivado/build.tcl
+constraints/pynq_adc_system.xdc
+constraints/pynqz2_leds.xdc
+```
 
-hls/base_add_prj/
+PYNQ software:
+
+```text
+pynq/ad9226_capture_smoke.py
+pynq/ad9226_capture_demo.ipynb
+```
+
+Generated or mostly generated:
+
+```text
 build/
+.Xil/
+rtl/sim/
+hls/base_add_prj/
 pynq/base_add.bit
 pynq/base_add.hwh
+```
 
-不要手动编辑生成文件，除非只是查看报告。
+## 3. Build Commands
 
-3. 构建命令
+From the project root:
 
-在 PowerShell 中执行：
-
+```powershell
 cd G:\VSCODE_Save_Files\PYNQ_Z2Code\PYNQZ2_PSPL_Base
-$env:DEBUG=''
-& 'G:\Xilinx\Vivado\2018.2\bin\vivado_hls.bat' -f hls\hls.tcl
-& 'G:\Xilinx\Vivado\2018.2\bin\vivado.bat' -mode batch -source vivado\build.tcl
+```
 
-在 VS Code 中：
+Run RTL/HLS checks:
 
-Ctrl+Shift+P -> Tasks: Run Task -> FPGA: 1 Build HLS IP
-Ctrl+Shift+P -> Tasks: Run Task -> FPGA: 2 Build Vivado Overlay
-4. PS 如何与 PL 通信
+```text
+VS Code task: FPGA: 1 Build HLS IP
+```
 
-HLS 代码使用 AXI-Lite 接口：
+Run Vivado overlay build:
 
-#pragma HLS INTERFACE s_axilite port=a bundle=CTRL
-#pragma HLS INTERFACE s_axilite port=b bundle=CTRL
-#pragma HLS INTERFACE s_axilite port=result bundle=CTRL
-#pragma HLS INTERFACE s_axilite port=return bundle=CTRL
+```text
+VS Code task: FPGA: 2 Build Vivado Overlay
+```
 
-Vivado 中的连接关系是：
+Regenerate reports only:
 
-PS M_AXI_GP0 -> AXI interconnect -> base_add_0/s_axi_CTRL
+```text
+VS Code task: FPGA: Generate RTL Report Only
+VS Code task: FPGA: Generate Vivado Overlay Report Only
+```
 
-Python 通过寄存器读写控制 IP：
+## 4. How To Confirm DMA Is Integrated
 
-ip.write(0x10, a)
-ip.write(0x18, b)
-ip.write(0x00, 0x01)
-result = ip.read(0x20)
-5. 在哪里查看结果
+Open `VIVADO_OVERLAY_REPORT.md`. For DMA version, these rows must be PASS:
 
-HLS C 仿真结果：
+```text
+AXI DMA S2MM in HWH
+AXI DMA in BD script
+AXIS Data FIFO in HWH
+AXIS Data FIFO in BD script
+adc_capture_0 to AXIS FIFO
+AXIS FIFO to DMA S2MM
+DMA S2MM to PS HP0
+DMA S_AXI_LITE to PS GP0
+Routed timing
+```
 
-hls/base_add_prj/solution1/csim/report/base_add_csim.log
+You can also search the HWH:
 
-HLS 综合报告：
+```powershell
+rg "axi_dma_0|axis_data_fifo_0|M_AXIS_SAMPLE|S_AXIS_S2MM|M_AXI_S2MM|S_AXI_HP0" pynq/base_add.hwh
+```
 
-hls/base_add_prj/solution1/syn/report/base_add_csynth.rpt
+Expected path:
 
-Vivado 实现后的时序报告：
+```text
+adc_capture_0/M_AXIS_SAMPLE
+  -> axis_data_fifo_0/S_AXIS
+  -> axis_data_fifo_0/M_AXIS
+  -> axi_dma_0/S_AXIS_S2MM
+  -> axi_dma_0/M_AXI_S2MM
+  -> processing_system7_0/S_AXI_HP0
+```
 
-build/vivado/base_add_overlay.runs/impl_1/system_wrapper_timing_summary_routed.rpt
+## 5. Board Test Order
 
-Vivado 资源使用报告：
+First test without real ADC:
 
-build/vivado/base_add_overlay.runs/impl_1/system_wrapper_utilization_placed.rpt
-6. 良好的开发习惯
+```bash
+python3 ad9226_capture_smoke.py
+```
 
-推荐使用下面的开发循环：
+This uses:
 
-1. 修改 HLS C/C++
-2. 运行 C 仿真
-3. 运行 HLS 综合
-4. 检查延迟、II 和资源使用情况
-5. 导出 IP
-6. 只有当 PL 硬件发生变化时，才重新构建 Vivado overlay
-7. 将 bit/hwh 复制到 PYNQ
-8. 在 Python/Jupyter 中调试
+```text
+capture_mode=2
+```
 
-如果只修改了 Python 代码，不要重新运行 Vivado。
+Expected checks:
 
-如果只修改了输入值或寄存器访问逻辑，就在 PYNQ/Jupyter 上调试。
+```text
+dma.recvchannel.wait() returns
+AXIS_SENT_COUNT == SAMPLE_COUNT
+TLAST_COUNT == 1
+DROPPED_SAMPLE_COUNT == 0
+STATUS.fatal_error == 0
+No sentinel values remain in DMA buffer
+Fake CH0/CH1 pattern matches
+```
 
-如果修改了 HLS pragma、函数端口、数组大小或硬件逻辑，则需要重新运行 HLS 和 Vivado。    、
+Then test in Jupyter:
+
+```text
+ad9226_capture_demo.ipynb
+```
+
+Only after fake stream passes, use:
+
+```text
+capture_mode=1
+```
+
+for real AD9226.
+
+Do not use `capture_mode=0` for DMA testing.
+
+## 6. What The Counters Mean
+
+```text
+SAMPLE_COUNT
+  Number of uint32 packed sample words requested by PS and DMA.
+
+SAMPLE_COUNTER
+  Raw ADC sample-edge count before decimation.
+
+SAVED_COUNTER
+  capture_core attempted saved count. This is not the final DMA success count.
+
+AXIS_SENT_COUNT
+  Number of packed words that actually handshook onto AXI-Stream.
+
+TLAST_COUNT
+  Number of successful TLAST handshakes. Must be 1 for a single-shot capture.
+
+DROPPED_SAMPLE_COUNT
+  Samples dropped because backpressure prevented acceptance. Must be 0 for full capture.
+
+CORE_DONE
+  capture_core finished trying to produce samples.
+
+CAPTURE_DONE_LATCHED / STATUS.done
+  Last AXI word with TLAST was sent from RTL side.
+```
+
+Main success criterion is DMA + AXIS counters, not `SAVED_COUNTER`.
+
+## 7. When To Rebuild
+
+Rebuild Vivado overlay if you change:
+
+```text
+rtl/src/*.v
+rtl/tb/*.v if used by reports
+constraints/*.xdc
+vivado/build.tcl
+IP interfaces
+AXI/AXIS port definitions
+```
+
+You do not need to rebuild bit/hwh if you only change:
+
+```text
+pynq/*.py
+pynq/*.ipynb
+docs/*.md
+reports scripts
+```
+
+But if you change a report script, rerun the report generator so the visible report matches the current checks.

@@ -1,5 +1,10 @@
 # AD9226 Dual-Channel Capture Plan
 
+> Legacy note: this document describes the earlier HLS-writer capture route.
+> The current DMA route is documented in `docs/AD9226_AXI_DMA_CAPTURE_PLAN.md`.
+> Do not treat the ODDR-fast notes or `base_add_0` writer notes below as the
+> current implementation status.
+
 目标：第一版 PL 尽量一次烧录完成，后续主要在 PS/Jupyter 端通过 AXI-Lite 裸地址调采样参数、采样率、模式、LED、触发和 buffer，不频繁重新综合 PL。
 
 主线保持：
