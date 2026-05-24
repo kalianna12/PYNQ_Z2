@@ -8,6 +8,8 @@ $UtilRpt = Join-Path $Root "build\vivado\base_add_overlay.runs\impl_1\system_wra
 $BitFile = Join-Path $Root "pynq\base_add.bit"
 $HwhFile = Join-Path $Root "pynq\base_add.hwh"
 $XprFile = Join-Path $Root "build\vivado\base_add_overlay.xpr"
+$LedTestFile = Join-Path $Root "pynq\led_ctrl_test.py"
+$LedNotebookFile = Join-Path $Root "pynq\led_ctrl_demo.ipynb"
 
 function Read-AllTextSafe($Path) {
     if (Test-Path $Path) { return [System.IO.File]::ReadAllText($Path) }
@@ -55,10 +57,12 @@ function File-InfoRow($Path) {
 $logText = Read-AllTextSafe $VivadoLog
 $timingText = Read-AllTextSafe $TimingRpt
 $utilText = Read-AllTextSafe $UtilRpt
+$hwhText = Read-AllTextSafe $HwhFile
 
 $bitgenStatus = if ($logText -match "Bitgen Completed Successfully") { "PASS" } elseif (Test-Path $VivadoLog) { "CHECK" } else { "MISSING" }
 $copyBitStatus = if ($logText -match "Copied bitstream") { "PASS" } else { "CHECK" }
 $copyHwhStatus = if ($logText -match "Copied handoff") { "PASS" } else { "CHECK" }
+$ledCtrlStatus = if ($hwhText -match "led_ctrl_0|led_ctrl_axi") { "PASS" } elseif (Test-Path $HwhFile) { "CHECK" } else { "MISSING" }
 
 $wns = ""
 $tns = ""
@@ -78,7 +82,7 @@ if (Test-Path $UtilRpt) {
 }
 
 $timingGoodLine = File-Line $TimingRpt "All user specified timing constraints are met"
-$uploadText = "pynq/base_add.bit`npynq/base_add.hwh`npynq/base_add_test.py`npynq/base_add_demo.ipynb"
+$uploadText = "pynq/base_add.bit`npynq/base_add.hwh`npynq/base_add_test.py`npynq/base_add_demo.ipynb`npynq/led_ctrl_test.py`npynq/led_ctrl_demo.ipynb"
 $xprStatus = if (Test-Path $XprFile) { "FOUND" } else { "MISSING" }
 
 $now = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
@@ -94,6 +98,7 @@ Generated: **$now**
 | Bitstream generation | $(Status-Badge $bitgenStatus) | `.bit` was created |
 | Copy bit to pynq folder | $(Status-Badge $copyBitStatus) | `pynq/base_add.bit` updated |
 | Copy hwh to pynq folder | $(Status-Badge $copyHwhStatus) | `pynq/base_add.hwh` updated |
+| RTL LED controller in HWH | $(Status-Badge $ledCtrlStatus) | PS can discover the AXI-Lite LED IP from `.hwh` |
 | Routed timing | $(Status-Badge $timingStatus) | Final implemented timing result |
 
 ## 2. Output Files For PYNQ
@@ -102,8 +107,10 @@ Generated: **$now**
 |---|---|---:|---|
 $(File-InfoRow $BitFile)
 $(File-InfoRow $HwhFile)
+$(File-InfoRow $LedTestFile)
+$(File-InfoRow $LedNotebookFile)
 
-Upload these two files to the PYNQ board after PL hardware changes.
+Upload these files to the PYNQ board after PL hardware changes.
 
 ## 3. Timing Summary
 
@@ -170,5 +177,5 @@ if ($timingStatus -eq "PASS") {
 }
 Write-Host "bit file    : $BitFile"
 Write-Host "hwh file    : $HwhFile"
-Write-Host "Next step   : upload bit/hwh/py/ipynb to PYNQ, then run base_add_test.py"
+Write-Host "Next step   : upload bit/hwh/py/ipynb to PYNQ, then run base_add_test.py or led_ctrl_test.py"
 Write-Host "===========================================" -ForegroundColor Cyan

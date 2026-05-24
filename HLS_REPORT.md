@@ -1,6 +1,6 @@
 ﻿# HLS Report
 
-Generated: **2026-05-24 03:57:10**
+Generated: **2026-05-24 17:25:32**
 
 ## 1. Build Status
 
@@ -66,7 +66,15 @@ Read these addresses in Python with ip.write() and ip.read().
 #define XBASE_ADD_CTRL_ADDR_SAMPLE_COUNT_DATA 0x18
 ~~~
 
-## 8. Next Step
+## 8. Related Reports
+
+For hand-written Verilog/VHDL simulation results, open:
+
+~~~text
+RTL_REPORT.md
+~~~
+
+## 9. Next Step
 
 If this report shows **PASS**, run:
 

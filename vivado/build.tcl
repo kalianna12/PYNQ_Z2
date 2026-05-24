@@ -8,6 +8,8 @@ set board_part tul.com.tw:pynq-z2:part0:1.0
 set build_dir [file join $root_dir build vivado]
 set pynq_dir [file join $root_dir pynq]
 set hls_ip_repo [file join $root_dir hls base_add_prj solution1 impl ip]
+set rtl_src [file join $root_dir rtl src led_ctrl_axi.v]
+set led_xdc [file join $root_dir constraints pynqz2_leds.xdc]
 
 file mkdir $build_dir
 file mkdir $pynq_dir
@@ -20,6 +22,8 @@ if {![file exists $hls_ip_repo]} {
 
 create_project -force $project_name $build_dir -part $part_name
 set_property board_part $board_part [current_project]
+add_files -norecurse $rtl_src
+add_files -fileset constrs_1 -norecurse $led_xdc
 set_property ip_repo_paths [list $hls_ip_repo] [current_project]
 update_ip_catalog
 
@@ -53,6 +57,24 @@ if {[llength $ctrl_pin] == 0} {
 apply_bd_automation -rule xilinx.com:bd_rule:axi4 \
     -config {Master "/processing_system7_0/M_AXI_GP0" Clk "Auto"} \
     $ctrl_pin
+
+create_bd_cell -type module -reference led_ctrl_axi led_ctrl_0
+
+set led_ctrl_pin [get_bd_intf_pins -quiet led_ctrl_0/S_AXI]
+if {[llength $led_ctrl_pin] == 0} {
+    puts "ERROR: Could not find AXI-Lite interface S_AXI on led_ctrl_0"
+    exit 1
+}
+
+apply_bd_automation -rule xilinx.com:bd_rule:axi4 \
+    -config {Master "/processing_system7_0/M_AXI_GP0" Clk "Auto"} \
+    $led_ctrl_pin
+
+make_bd_pins_external [get_bd_pins led_ctrl_0/leds_4bits_tri_o]
+set led_bd_port [get_bd_ports -quiet leds_4bits_tri_o_0]
+if {[llength $led_bd_port] != 0} {
+    set_property name leds_4bits_tri_o $led_bd_port
+}
 
 set m_axi_pin [get_bd_intf_pins -quiet base_add_0/m_axi_GMEM]
 if {[llength $m_axi_pin] == 0} {

@@ -148,7 +148,13 @@ Read these addresses in Python with `ip.write()` and `ip.read()`.
 
 $(Code-Block $regText "reg")
 
-## 8. Next Step
+## 8. Related Reports
+
+For hand-written Verilog/VHDL simulation results, open:
+
+$(Code-Block "RTL_REPORT.md" "cmd")
+
+## 9. Next Step
 
 If this report shows **PASS**, run:
 
