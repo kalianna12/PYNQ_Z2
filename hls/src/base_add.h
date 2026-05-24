@@ -2,11 +2,19 @@
 #define BASE_ADD_H
 
 #include <ap_int.h>
+#include <hls_stream.h>
 
-#define MAX_SAMPLE_N 1024
-#define BUFFER_WORDS (MAX_SAMPLE_N * 2)
+#define MAX_SAMPLE_N 65536
+#define BUFFER_WORDS 131072
 
-void base_add(volatile int *buffer, int sample_count);
+typedef ap_uint<32> sample_word_t;
+
+void base_add(
+    volatile int *buffer,
+    int sample_count,
+    int capture_mode,
+    hls::stream<sample_word_t> &sample_stream
+);
 
 #endif
 

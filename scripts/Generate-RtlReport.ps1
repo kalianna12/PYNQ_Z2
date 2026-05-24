@@ -6,6 +6,8 @@ $RtlSrcDir = Join-Path $Root "rtl\src"
 $RtlTbDir = Join-Path $Root "rtl\tb"
 $RtlSimLog = Join-Path $Root "rtl\sim\led_ctrl_axi_sim.log"
 $RtlInnerSimLog = Join-Path $Root "rtl\sim\led_ctrl_axi_sim.sim\sim_1\behav\xsim\simulate.log"
+$AdcRtlSimLog = Join-Path $Root "rtl\sim\ad9226_capture_sim.log"
+$AdcInnerSimLog = Join-Path $Root "rtl\sim\ad9226_capture_sim.sim\sim_1\behav\xsim\simulate.log"
 $LedXdc = Join-Path $Root "constraints\pynqz2_leds.xdc"
 
 function Read-AllTextSafe($Path) {
@@ -39,16 +41,38 @@ function File-Table($Dir, $Pattern) {
 
 $simText = Read-AllTextSafe $RtlSimLog
 $innerSimText = Read-AllTextSafe $RtlInnerSimLog
-$combinedSimText = "$simText`n$innerSimText"
+$adcSimText = Read-AllTextSafe $AdcRtlSimLog
+$adcInnerSimText = Read-AllTextSafe $AdcInnerSimLog
+$combinedSimText = "$simText`n$innerSimText`n$adcSimText`n$adcInnerSimText"
 
-$rtlSimStatus = if ($combinedSimText -match "FINAL: PASS") {
+$ledSimStatus = if ("$simText`n$innerSimText" -match "FINAL: PASS") {
     "PASS"
-} elseif ($combinedSimText -match "FINAL: FAIL|ERROR:") {
+} elseif ("$simText`n$innerSimText" -match "FINAL: FAIL|ERROR:") {
     "FAIL"
 } elseif ((Test-Path $RtlSimLog) -or (Test-Path $RtlInnerSimLog)) {
     "CHECK"
 } else {
     "MISSING"
+}
+
+$adcSimStatus = if ("$adcSimText`n$adcInnerSimText" -match "FINAL: PASS") {
+    "PASS"
+} elseif ("$adcSimText`n$adcInnerSimText" -match "FINAL: FAIL|ERROR:") {
+    "FAIL"
+} elseif ((Test-Path $AdcRtlSimLog) -or (Test-Path $AdcInnerSimLog)) {
+    "CHECK"
+} else {
+    "MISSING"
+}
+
+$rtlSimStatus = if (($ledSimStatus -eq "PASS") -and ($adcSimStatus -eq "PASS")) {
+    "PASS"
+} elseif (($ledSimStatus -eq "FAIL") -or ($adcSimStatus -eq "FAIL")) {
+    "FAIL"
+} elseif (($ledSimStatus -eq "MISSING") -or ($adcSimStatus -eq "MISSING")) {
+    "MISSING"
+} else {
+    "CHECK"
 }
 
 $finalLines = @()
@@ -58,6 +82,12 @@ if (Test-Path $RtlSimLog) {
 if (Test-Path $RtlInnerSimLog) {
     $finalLines += Select-String -Path $RtlInnerSimLog -Pattern "FINAL:" | ForEach-Object { $_.Line.Trim() }
 }
+if (Test-Path $AdcRtlSimLog) {
+    $finalLines += Select-String -Path $AdcRtlSimLog -Pattern "FINAL:" | ForEach-Object { $_.Line.Trim() }
+}
+if (Test-Path $AdcInnerSimLog) {
+    $finalLines += Select-String -Path $AdcInnerSimLog -Pattern "FINAL:" | ForEach-Object { $_.Line.Trim() }
+}
 $finalText = (($finalLines | Select-Object -Unique) -join "`n").Trim()
 
 $xdcText = ""
@@ -66,10 +96,24 @@ if (Test-Path $LedXdc) {
 }
 
 $registerText = @"
+led_ctrl_axi:
 0x00 CTRL        bit0 enable, bits[3:1] mode
 0x04 SPEED_DIV   blink/walk/counter divider
 0x08 LED_VALUE   manual LED value, bits[3:0]
 0x0C STATUS      bits[3:0] current LED, bits[7:4] tick counter
+
+adc_ctrl_axi planned:
+0x00 CTRL         bit0 enable, bit1 start pulse, bit2 clear pulse, bit6 soft_reset
+0x04 STATUS       busy/done/adc_clk_seen/fifo/error/data_changed
+0x08 SAMPLE_COUNT saved sample count
+0x0C ADC_HALF     ADC clock half period
+0x10 SAMPLE_DELAY delay in clk_125m cycles
+0x14 DECIMATION   save 1 per N ADC samples
+0x18 CHANNEL_MASK bit0 A, bit1 B
+0x1C CAPTURE_MODE 0 writer fake, 1 real ADC, 2 capture_core fake stream
+0x48 SAVED_COUNTER
+0x4C LAST_SAMPLE_WORD
+0x50 DEBUG_STATE
 "@
 
 $now = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
@@ -82,7 +126,9 @@ Generated: **$now**
 
 | Item | Status | What It Means |
 |---|---|---|
-| RTL behavioral simulation | $(Status-Badge $rtlSimStatus) | Verilog testbench result before Vivado overlay integration |
+| LED AXI-Lite simulation | $(Status-Badge $ledSimStatus) | Existing PS-controlled LED RTL testbench |
+| AD9226 capture simulation | $(Status-Badge $adcSimStatus) | New capture_core + FIFO fake/real stream testbench |
+| Overall RTL simulation | $(Status-Badge $rtlSimStatus) | All RTL testbenches before Vivado overlay integration |
 
 Key result:
 
@@ -103,7 +149,8 @@ $(File-Table $RtlTbDir "*.v")
 ## 4. Simulated Register Map
 
 These are RTL module offsets. The base address must still come from generated
-Vivado `.hwh` or Vivado logs.
+Vivado `.hwh` or Vivado logs. In PYNQ, `ip.write(offset, value)` uses the
+IP-local offset, not `base_address + offset`.
 
 $(Code-Block $registerText)
 
@@ -119,13 +166,21 @@ $(Code-Block $xdcText)
 
 ## 6. Logs
 
-Main Vivado simulation log:
+LED Vivado simulation log:
 
 $(Code-Block $RtlSimLog)
 
-Inner xsim log:
+LED inner xsim log:
 
 $(Code-Block $RtlInnerSimLog)
+
+AD9226 capture Vivado simulation log:
+
+$(Code-Block $AdcRtlSimLog)
+
+AD9226 capture inner xsim log:
+
+$(Code-Block $AdcInnerSimLog)
 
 ## 7. Next Step
 
@@ -141,6 +196,8 @@ Write-Host ""
 Write-Host "========== RTL SUMMARY REPORT ==========" -ForegroundColor Cyan
 Write-Host "Report file : $Out"
 Write-Host "Generated at: $now"
+Write-Host "LED sim     : $ledSimStatus"
+Write-Host "AD9226 sim  : $adcSimStatus"
 if ($rtlSimStatus -eq "PASS") {
     Write-Host "RTL sim     : PASS" -ForegroundColor Green
 } elseif ($rtlSimStatus -eq "FAIL" -or $rtlSimStatus -eq "MISSING") {

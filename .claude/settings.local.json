@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(vivado *)",
+      "Bash(powershell.exe *)",
+      "Bash(G:/VSCODE_Save_Files/PYNQ_Z2Code/PYNQZ2_PSPL_Base/rtl/sim/ad9226_capture_sim.sim/sim_1/behav/xsim/compile.bat *)",
+      "Bash(cmd.exe *)",
+      "Bash(./compile.bat)",
+      "Bash(./elaborate.bat)",
+      "Bash(./simulate.bat)"
+    ]
+  }
+}

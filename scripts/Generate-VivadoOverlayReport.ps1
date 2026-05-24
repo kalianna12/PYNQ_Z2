@@ -82,6 +82,7 @@ $bitgenStatus = if ($logText -match "Bitgen Completed Successfully") { "PASS" } 
 $copyBitStatus = if ($logText -match "Copied bitstream") { "PASS" } else { "CHECK" }
 $copyHwhStatus = if ($logText -match "Copied handoff") { "PASS" } else { "CHECK" }
 $ledCtrlStatus = if ($hwhText -match "led_ctrl_0|led_ctrl_axi") { "PASS" } elseif (Test-Path $HwhFile) { "CHECK" } else { "MISSING" }
+$adcCaptureStatus = if ($hwhText -match "adc_capture_0|adc_capture_system") { "PASS" } elseif (Test-Path $HwhFile) { "CHECK" } else { "MISSING" }
 
 $wns = ""
 $tns = ""
@@ -118,6 +119,7 @@ Generated: **$now**
 | Copy bit to pynq folder | $(Status-Badge $copyBitStatus) | `pynq/base_add.bit` updated |
 | Copy hwh to pynq folder | $(Status-Badge $copyHwhStatus) | `pynq/base_add.hwh` updated |
 | RTL LED controller in HWH | $(Status-Badge $ledCtrlStatus) | PS can discover the AXI-Lite LED IP from `.hwh` |
+| AD9226 capture controller in HWH | $(Status-Badge $adcCaptureStatus) | PS can discover adc_capture_0 from hwh |
 | Routed timing | $(Status-Badge $timingStatus) | Final implemented timing result |
 
 ## 2. Output Files For PYNQ

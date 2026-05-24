@@ -8,8 +8,15 @@ set board_part tul.com.tw:pynq-z2:part0:1.0
 set build_dir [file join $root_dir build vivado]
 set pynq_dir [file join $root_dir pynq]
 set hls_ip_repo [file join $root_dir hls base_add_prj solution1 impl ip]
-set rtl_src [file join $root_dir rtl src led_ctrl_axi.v]
+set rtl_src [list \
+    [file join $root_dir rtl src led_ctrl_axi.v] \
+    [file join $root_dir rtl src adc_ctrl_axi.v] \
+    [file join $root_dir rtl src ad9226_capture_core.v] \
+    [file join $root_dir rtl src adc_sample_fifo.v] \
+    [file join $root_dir rtl src adc_capture_system.v] \
+]
 set led_xdc [file join $root_dir constraints pynqz2_leds.xdc]
+set adc_xdc [file join $root_dir constraints pynq_adc_system.xdc]
 
 file mkdir $build_dir
 file mkdir $pynq_dir
@@ -24,6 +31,11 @@ create_project -force $project_name $build_dir -part $part_name
 set_property board_part $board_part [current_project]
 add_files -norecurse $rtl_src
 add_files -fileset constrs_1 -norecurse $led_xdc
+if {[file exists $adc_xdc]} {
+    add_files -fileset constrs_1 -norecurse $adc_xdc
+} else {
+    puts "WARNING: ADC XDC not found: $adc_xdc"
+}
 set_property ip_repo_paths [list $hls_ip_repo] [current_project]
 update_ip_catalog
 
@@ -76,6 +88,68 @@ if {[llength $led_bd_port] != 0} {
     set_property name leds_4bits_tri_o $led_bd_port
 }
 
+create_bd_cell -type module -reference adc_capture_system adc_capture_0
+
+set adc_ctrl_pin [get_bd_intf_pins -quiet adc_capture_0/S_AXI]
+if {[llength $adc_ctrl_pin] == 0} {
+    puts "ERROR: Could not find AXI-Lite interface S_AXI on adc_capture_0"
+    exit 1
+}
+
+apply_bd_automation -rule xilinx.com:bd_rule:axi4 \
+    -config {Master "/processing_system7_0/M_AXI_GP0" Clk "Auto"} \
+    $adc_ctrl_pin
+
+foreach adc_pin_name {adc_a_clk adc_b_clk adc_a_ora adc_b_orb adc_a_data adc_b_data} {
+    set adc_pin [get_bd_pins -quiet adc_capture_0/$adc_pin_name]
+    if {[llength $adc_pin] != 0} {
+        make_bd_pins_external $adc_pin
+    }
+}
+
+foreach ext_pair {
+    {adc_a_clk_0 adc_a_clk}
+    {adc_b_clk_0 adc_b_clk}
+    {adc_a_ora_0 adc_a_ora}
+    {adc_b_orb_0 adc_b_orb}
+    {adc_a_data_0 adc_a_data}
+    {adc_b_data_0 adc_b_data}
+} {
+    set old_name [lindex $ext_pair 0]
+    set new_name [lindex $ext_pair 1]
+    set bd_port [get_bd_ports -quiet $old_name]
+    if {[llength $bd_port] != 0} {
+        set_property name $new_name $bd_port
+    }
+}
+
+set adc_axis_pin [get_bd_intf_pins -quiet adc_capture_0/M_AXIS_SAMPLE]
+if {[llength $adc_axis_pin] == 0} {
+    puts "ERROR: Could not find AXI-Stream output interface M_AXIS_SAMPLE on adc_capture_0"
+    exit 1
+}
+
+set hls_stream_pin [get_bd_intf_pins -quiet base_add_0/sample_stream_V]
+if {[llength $hls_stream_pin] == 0} {
+    set hls_stream_pin [get_bd_intf_pins -quiet base_add_0/sample_stream_V_V]
+}
+if {[llength $hls_stream_pin] == 0} {
+    set hls_stream_pin [get_bd_intf_pins -quiet base_add_0/sample_stream]
+}
+if {[llength $hls_stream_pin] == 0} {
+    set hls_stream_pin [get_bd_intf_pins -quiet base_add_0/SAMPLE_STREAM_V]
+}
+if {[llength $hls_stream_pin] == 0} {
+    set hls_stream_pin [get_bd_intf_pins -quiet base_add_0/SAMPLE_STREAM_V_V]
+}
+if {[llength $hls_stream_pin] == 0} {
+    puts "ERROR: Could not find AXI-Stream input interface sample_stream on base_add_0"
+    puts "Run VS Code task: FPGA: 1 Build HLS IP after updating hls/src/base_add.cpp"
+    exit 1
+}
+
+connect_bd_intf_net $adc_axis_pin $hls_stream_pin
+
 set m_axi_pin [get_bd_intf_pins -quiet base_add_0/m_axi_GMEM]
 if {[llength $m_axi_pin] == 0} {
     set m_axi_pin [get_bd_intf_pins -quiet base_add_0/M_AXI_GMEM]
@@ -103,6 +177,16 @@ if {[llength $fclk0_pin] == 0} {
     exit 1
 }
 
+foreach clk_target {
+    base_add_0/ap_clk
+    adc_capture_0/S_AXI_ACLK
+} {
+    set clk_pin [get_bd_pins -quiet $clk_target]
+    if {[llength $clk_pin] != 0 && [llength [get_bd_nets -quiet -of_objects $clk_pin]] == 0} {
+        connect_bd_net $fclk0_pin $clk_pin
+    }
+}
+
 foreach clk_pin_name {ACLK S00_ACLK M00_ACLK} {
     set clk_pin [get_bd_pins -quiet axi_hp0_interconnect/$clk_pin_name]
     if {[llength $clk_pin] != 0} {
@@ -122,6 +206,16 @@ if {[llength $resetn_pin] == 0} {
 }
 set resetn_pin [lindex $resetn_pin 0]
 
+foreach rst_target {
+    base_add_0/ap_rst_n
+    adc_capture_0/S_AXI_ARESETN
+} {
+    set rst_pin [get_bd_pins -quiet $rst_target]
+    if {[llength $rst_pin] != 0 && [llength [get_bd_nets -quiet -of_objects $rst_pin]] == 0} {
+        connect_bd_net $resetn_pin $rst_pin
+    }
+}
+
 foreach rst_pin_name {ARESETN S00_ARESETN M00_ARESETN} {
     set rst_pin [get_bd_pins -quiet axi_hp0_interconnect/$rst_pin_name]
     if {[llength $rst_pin] != 0} {
@@ -138,6 +232,8 @@ generate_target all $bd_file
 
 set wrapper_file [make_wrapper -files $bd_file -top]
 add_files -norecurse $wrapper_file
+update_compile_order -fileset sources_1
+set_property top ${design_name}_wrapper [current_fileset]
 update_compile_order -fileset sources_1
 
 launch_runs synth_1 -jobs 4

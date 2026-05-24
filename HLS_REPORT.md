@@ -1,6 +1,6 @@
 ﻿# HLS Report
 
-Generated: **2026-05-24 17:25:32**
+Generated: **2026-05-24 20:04:52**
 
 ## 1. Build Status
 
@@ -38,13 +38,13 @@ Rule: **Estimated < Target** means the HLS estimate is acceptable.
 
 | Latency min | Latency max | Interval min | Interval max |
 |---:|---:|---:|---:|
-| **10** | **2056** | **10** | **2056** |
+| **11** | **131081** | **11** | **131081** |
 
 ## 5. Resource Estimate
 
 | BRAM_18K | DSP48E | FF | LUT |
 |---:|---:|---:|---:|
-| 2 | 0 | 848 | 1145 |
+| 2 | 0 | 986 | 1354 |
 
 ## 6. Generated IP
 
@@ -64,6 +64,7 @@ Read these addresses in Python with ip.write() and ip.read().
 #define XBASE_ADD_CTRL_ADDR_ISR               0x0c
 #define XBASE_ADD_CTRL_ADDR_BUFFER_R_DATA     0x10
 #define XBASE_ADD_CTRL_ADDR_SAMPLE_COUNT_DATA 0x18
+#define XBASE_ADD_CTRL_ADDR_CAPTURE_MODE_DATA 0x20
 ~~~
 
 ## 8. Related Reports
