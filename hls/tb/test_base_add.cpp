@@ -1,6 +1,19 @@
 #include <iostream>
 #include "../src/base_add.h"
 
+int calc_tri(int i) {
+    int phase = i & 255;
+    int tri;
+
+    if (phase < 128) {
+        tri = phase * 16;
+    } else {
+        tri = (255 - phase) * 16;
+    }
+
+    return tri;
+}
+
 int main() {
     int buffer[BUFFER_WORDS];
 
@@ -15,8 +28,8 @@ int main() {
     int errors = 0;
 
     for (int i = 0; i < n; i++) {
-        int expected_ch0 = i;
-        int expected_ch1 = n - 1 - i;
+        int expected_ch0 = calc_tri(i);
+        int expected_ch1 = expected_ch0 / 2;
 
         if (buffer[i] != expected_ch0) {
             std::cout << "FAIL CH0: i=" << i
@@ -45,4 +58,3 @@ int main() {
     std::cout << "FINAL: FAIL, errors=" << errors << std::endl;
     return 1;
 }
-

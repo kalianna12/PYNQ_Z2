@@ -17,12 +17,22 @@ void base_add(volatile int *buffer, int sample_count) {
     }
 
     for (int i = 0; i < n; i++) {
+#pragma HLS LOOP_TRIPCOUNT min=1 max=1024
 #pragma HLS PIPELINE II=1
-        int ch0 = i;
-        int ch1 = n - 1 - i;
+
+        int phase = i & 255;
+        int tri;
+
+        if (phase < 128) {
+            tri = phase * 16;
+        } else {
+            tri = (255 - phase) * 16;
+        }
+
+        int ch0 = tri;
+        int ch1 = tri / 2;
 
         buffer[i] = ch0;
         buffer[MAX_SAMPLE_N + i] = ch1;
     }
 }
-

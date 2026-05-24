@@ -1,6 +1,6 @@
 ﻿# HLS Report
 
-Generated: **2026-05-24 03:07:27**
+Generated: **2026-05-24 03:57:10**
 
 ## 1. Build Status
 
@@ -38,13 +38,13 @@ Rule: **Estimated < Target** means the HLS estimate is acceptable.
 
 | Latency min | Latency max | Interval min | Interval max |
 |---:|---:|---:|---:|
-| **** | **** | **** | **** |
+| **10** | **2056** | **10** | **2056** |
 
 ## 5. Resource Estimate
 
 | BRAM_18K | DSP48E | FF | LUT |
 |---:|---:|---:|---:|
-| 2 | 0 | 847 | 1147 |
+| 2 | 0 | 848 | 1145 |
 
 ## 6. Generated IP
 
