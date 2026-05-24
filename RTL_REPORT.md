@@ -1,19 +1,20 @@
 ﻿# RTL Report
 
-Generated: **2026-05-24 20:04:52**
+Generated: **2026-05-24 20:09:39**
 
 ## 1. RTL Simulation Status
 
 | Item | Status | What It Means |
 |---|---|---|
 | LED AXI-Lite simulation | <span style="color:#008000;font-weight:bold;font-size:16px;">PASS</span> | Existing PS-controlled LED RTL testbench |
-| AD9226 capture simulation | <span style="color:#b26a00;font-weight:bold;">CHECK</span> | New capture_core + FIFO fake/real stream testbench |
-| Overall RTL simulation | <span style="color:#b26a00;font-weight:bold;">CHECK</span> | All RTL testbenches before Vivado overlay integration |
+| AD9226 capture simulation | <span style="color:#008000;font-weight:bold;font-size:16px;">PASS</span> | New capture_core + FIFO fake/real stream testbench |
+| Overall RTL simulation | <span style="color:#008000;font-weight:bold;font-size:16px;">PASS</span> | All RTL testbenches before Vivado overlay integration |
 
 Key result:
 
 ~~~text
 FINAL: PASS led_ctrl_axi direct/blink/walk/counter modes
+FINAL: PASS ad9226 capture fake/real/fifo overflow/decimation/pre_delay config rules
 ~~~
 
 ## 2. RTL Source Files
