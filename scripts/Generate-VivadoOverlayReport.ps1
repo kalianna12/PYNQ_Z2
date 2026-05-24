@@ -5,11 +5,10 @@ $Out = Join-Path $Root "VIVADO_OVERLAY_REPORT.md"
 $VivadoLog = Join-Path $Root "vivado.log"
 $TimingRpt = Join-Path $Root "build\vivado\base_add_overlay.runs\impl_1\system_wrapper_timing_summary_routed.rpt"
 $UtilRpt = Join-Path $Root "build\vivado\base_add_overlay.runs\impl_1\system_wrapper_utilization_placed.rpt"
+$PynqDir = Join-Path $Root "pynq"
 $BitFile = Join-Path $Root "pynq\base_add.bit"
 $HwhFile = Join-Path $Root "pynq\base_add.hwh"
 $XprFile = Join-Path $Root "build\vivado\base_add_overlay.xpr"
-$LedTestFile = Join-Path $Root "pynq\led_ctrl_test.py"
-$LedNotebookFile = Join-Path $Root "pynq\led_ctrl_demo.ipynb"
 
 function Read-AllTextSafe($Path) {
     if (Test-Path $Path) { return [System.IO.File]::ReadAllText($Path) }
@@ -54,6 +53,26 @@ function File-InfoRow($Path) {
     return "| $($f.Name) | $(Status-Badge 'FOUND') | $($f.Length) | $($f.LastWriteTime.ToString('yyyy-MM-dd HH:mm:ss')) |"
 }
 
+function Pynq-FileRows($Dir) {
+    if (!(Test-Path $Dir)) { return "| $Dir | $(Status-Badge 'MISSING') | - | - |" }
+    $files = Get-ChildItem -Path $Dir -File |
+        Where-Object { $_.Extension -in ".bit", ".hwh", ".py", ".ipynb" } |
+        Sort-Object Extension, Name
+    if (!$files) { return "| No board files found | $(Status-Badge 'MISSING') | - | - |" }
+    return (($files | ForEach-Object {
+        "| $($_.Name) | $(Status-Badge 'FOUND') | $($_.Length) | $($_.LastWriteTime.ToString('yyyy-MM-dd HH:mm:ss')) |"
+    }) -join "`n")
+}
+
+function Pynq-UploadText($Dir) {
+    if (!(Test-Path $Dir)) { return "pynq folder not found" }
+    $files = Get-ChildItem -Path $Dir -File |
+        Where-Object { $_.Extension -in ".bit", ".hwh", ".py", ".ipynb" } |
+        Sort-Object Extension, Name
+    if (!$files) { return "No board files found" }
+    return (($files | ForEach-Object { "pynq/$($_.Name)" }) -join "`n")
+}
+
 $logText = Read-AllTextSafe $VivadoLog
 $timingText = Read-AllTextSafe $TimingRpt
 $utilText = Read-AllTextSafe $UtilRpt
@@ -82,7 +101,7 @@ if (Test-Path $UtilRpt) {
 }
 
 $timingGoodLine = File-Line $TimingRpt "All user specified timing constraints are met"
-$uploadText = "pynq/base_add.bit`npynq/base_add.hwh`npynq/base_add_test.py`npynq/base_add_demo.ipynb`npynq/led_ctrl_test.py`npynq/led_ctrl_demo.ipynb"
+$uploadText = Pynq-UploadText $PynqDir
 $xprStatus = if (Test-Path $XprFile) { "FOUND" } else { "MISSING" }
 
 $now = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
@@ -105,10 +124,7 @@ Generated: **$now**
 
 | File | Status | Bytes | Last Write Time |
 |---|---|---:|---|
-$(File-InfoRow $BitFile)
-$(File-InfoRow $HwhFile)
-$(File-InfoRow $LedTestFile)
-$(File-InfoRow $LedNotebookFile)
+$(Pynq-FileRows $PynqDir)
 
 Upload these files to the PYNQ board after PL hardware changes.
 
@@ -152,7 +168,8 @@ If this report shows **PASS**, upload these files to PYNQ:
 
 $(Code-Block $uploadText "cmd")
 
-Then run **base_add_test.py** on the board, or open the notebook in the board's browser Jupyter.
+Then run one of the existing Python scripts on the board, or open an existing
+notebook in the board's browser Jupyter.
 
 "@
 
@@ -177,5 +194,5 @@ if ($timingStatus -eq "PASS") {
 }
 Write-Host "bit file    : $BitFile"
 Write-Host "hwh file    : $HwhFile"
-Write-Host "Next step   : upload bit/hwh/py/ipynb to PYNQ, then run base_add_test.py or led_ctrl_test.py"
+Write-Host "Next step   : upload listed pynq files to PYNQ, then run a script or notebook"
 Write-Host "===========================================" -ForegroundColor Cyan

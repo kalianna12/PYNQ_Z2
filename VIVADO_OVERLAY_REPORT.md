@@ -1,6 +1,6 @@
 ﻿# Vivado Overlay Report
 
-Generated: **2026-05-24 17:25:32**
+Generated: **2026-05-24 17:36:41**
 
 ## 1. Build Status
 
@@ -18,7 +18,6 @@ Generated: **2026-05-24 17:25:32**
 |---|---|---:|---|
 | base_add.bit | <span style="color:#008000;font-weight:bold;">FOUND</span> | 4045674 | 2026-05-24 17:18:14 |
 | base_add.hwh | <span style="color:#008000;font-weight:bold;">FOUND</span> | 241958 | 2026-05-24 17:13:43 |
-| led_ctrl_test.py | <span style="color:#008000;font-weight:bold;">FOUND</span> | 1404 | 2026-05-24 16:58:00 |
 | led_ctrl_demo.ipynb | <span style="color:#008000;font-weight:bold;">FOUND</span> | 2716 | 2026-05-24 17:11:25 |
 
 Upload these files to the PYNQ board after PL hardware changes.
@@ -75,11 +74,9 @@ If this report shows **PASS**, upload these files to PYNQ:
 ~~~text
 pynq/base_add.bit
 pynq/base_add.hwh
-pynq/base_add_test.py
-pynq/base_add_demo.ipynb
-pynq/led_ctrl_test.py
 pynq/led_ctrl_demo.ipynb
 ~~~
 
-Then run **base_add_test.py** on the board, or open the notebook in the board's browser Jupyter.
+Then run one of the existing Python scripts on the board, or open an existing
+notebook in the board's browser Jupyter.
 

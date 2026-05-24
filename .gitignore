@@ -15,6 +15,7 @@ hls/*_prj/
 
 # Simulation generated files
 xsim.dir/
+rtl/sim/
 *.vcd
 *.fst
 

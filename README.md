@@ -1,136 +1,71 @@
-# PYNQ-Z2 PS/PL 基础模板
+# PYNQ-Z2 PS/PL Base Template
 
-这是一个干净的 PYNQ-Z2 PS + PL 项目学习模板。
-
-PL 端包含一个简单的 HLS IP：
+这是一个用于学习和后续接入 ADC/DAC 的 PYNQ-Z2 工程模板。当前工程同时包含：
 
 ```text
-result = a + b
+HLS IP   : base_add，当前作为 fake capture 示例，通过 m_axi 写 DDR buffer
+RTL IP   : led_ctrl_axi，AXI-Lite 控制 PYNQ-Z2 LED0~LED3
+Vivado   : 自动创建 Zynq PS，连接 HLS IP、RTL IP、LED 管脚和 DDR 通路
+PYNQ     : 通过 bit/hwh + Jupyter notebook 控制 PL
 ```
 
-Vivado 会自动把 Zynq PS 的 AXI 主接口连接到这个 HLS IP。PYNQ 端加载生成的 `.bit` 和 `.hwh` 文件，然后通过 Python 寄存器读写来控制该 IP。
+当前 `pynq/` 文件夹已精简，只保留板端运行需要的核心文件：
 
-## 目录结构
+```text
+pynq/base_add.bit
+pynq/base_add.hwh
+pynq/led_ctrl_demo.ipynb
+```
+
+`__pycache__/` 是 Python 缓存，可以删除，也已经被 `.gitignore` 忽略。
+
+## Directory Structure
 
 ```text
 PYNQZ2_PSPL_Base/
   hls/
-    src/base_add.cpp       HLS 硬件函数
-    src/base_add.h         HLS 函数声明
-    tb/test_base_add.cpp   C 仿真测试平台
-    hls.tcl                构建 HLS IP
+    src/base_add.cpp          HLS fake capture 硬件函数
+    src/base_add.h            HLS 函数声明
+    tb/test_base_add.cpp      HLS C 仿真 testbench
+    hls.tcl                   构建 HLS IP
+
+  rtl/
+    src/led_ctrl_axi.v        手写 RTL AXI-Lite LED 控制器
+    tb/tb_led_ctrl_axi.v      RTL 仿真 testbench
+    sim_led_ctrl.tcl          RTL 仿真脚本
+
+  constraints/
+    pynqz2_leds.xdc           LED0~LED3 管脚约束
+
   vivado/
-    build.tcl              构建 PS/PL overlay，并导出 bit/hwh
+    build.tcl                 构建 PS/PL overlay，生成 bit/hwh
+
   pynq/
-    base_add_test.py       PYNQ 板/Jupyter 的 Python 测试脚本
-    base_add_demo.ipynb    简单的 Jupyter Notebook
-  docs/
-    FLOW.md                分步骤学习笔记
-  .vscode/
-    tasks.json             VS Code 构建任务
+    base_add.bit              PYNQ 加载 PL 的 bitstream
+    base_add.hwh              PYNQ 识别 IP、地址、端口的硬件描述
+    led_ctrl_demo.ipynb       Jupyter LED 控制演示
+
+  scripts/
+    Build-HlsWithReport.ps1
+    Build-VivadoOverlayWithReport.ps1
+    Generate-HlsReport.ps1
+    Generate-RtlReport.ps1
+    Generate-VivadoOverlayReport.ps1
+
+  HLS_REPORT.md
+  RTL_REPORT.md
+  VIVADO_OVERLAY_REPORT.md
 ```
 
-## 在 Windows 上构建
+## Build Flow
 
-用 VS Code 打开这个文件夹，然后运行：
+在 VS Code 中打开工程根目录：
 
 ```text
-Ctrl+Shift+P -> Tasks: Run Task -> FPGA: 1 Build HLS IP
-Ctrl+Shift+P -> Tasks: Run Task -> FPGA: 2 Build Vivado Overlay
-```
-
-生成的板端文件会被复制到：
-
-```text
-pynq/base_add.bit
-pynq/base_add.hwh
-```
-
-## 在 PYNQ-Z2 上运行
-
-把 `pynq/` 文件夹中的内容复制到你的 PYNQ 板上，然后运行：
-
-```bash
-python3 base_add_test.py
-```
-
-或者在 Jupyter 中打开 `base_add_demo.ipynb`。
-
-## 初学者工作流程
-
-这个项目用于学习最小的 PS + PL 开发闭环：
-
-```text
-编写 HLS C/C++
--> 运行 HLS 仿真和综合
--> 导出 HLS IP
--> 运行 Vivado 连接 PS 和 PL
--> 生成 bit/hwh
--> 在 PYNQ 上运行 Python 或 Jupyter
-```
-
-PS 是 PYNQ-Z2 板上的 ARM 处理器。它运行 Linux、Python 和 Jupyter。
-
-PL 是 FPGA 可编程逻辑区域。你的 HLS C/C++ 代码会在 PL 中变成真实硬件。
-
-在这个基础项目中，PL 硬件是：
-
-```cpp
-*result = a + b;
-```
-
-PS 端用 Python 控制它：
-
-```python
-ip.write(0x10, a)
-ip.write(0x18, b)
-ip.write(0x00, 0x01)
-result = ip.read(0x20)
-```
-
-含义如下：
-
-```text
-0x10: 输入 a
-0x18: 输入 b
-0x00: 控制寄存器，写入 1 表示启动
-0x20: 输出 result
-```
-
-## 你需要编辑的文件
-
-通常编辑这些文件：
-
-```text
-hls/src/base_add.cpp        PL 硬件函数
-hls/src/base_add.h          PL 函数声明
-hls/tb/test_base_add.cpp    HLS C 仿真测试平台
-pynq/base_add_test.py       PYNQ 上的 Python 测试
-pynq/base_add_demo.ipynb    PYNQ 上的 Jupyter Notebook
-```
-
-不要手动编辑这些生成文件夹：
-
-```text
-hls/base_add_prj/
-build/
-```
-
-不要编辑 Xilinx 库文件，例如：
-
-```text
-G:\Xilinx\Vivado\2018.2\include\ap_int.h
-```
-
-## VS Code 中的命令
-
-打开这个文件夹：
-
-```powershell
 G:\VSCODE_Save_Files\PYNQ_Z2Code\PYNQZ2_PSPL_Base
 ```
 
-运行 HLS：
+运行第 1 步：
 
 ```text
 Ctrl+Shift+P
@@ -138,30 +73,21 @@ Tasks: Run Task
 FPGA: 1 Build HLS IP
 ```
 
-等价的 PowerShell 命令：
-
-```powershell
-cd G:\VSCODE_Save_Files\PYNQ_Z2Code\PYNQZ2_PSPL_Base
-$env:DEBUG=''
-& 'G:\Xilinx\Vivado\2018.2\bin\vivado_hls.bat' -f hls\hls.tcl
-```
-
-完成这一步后，检查是否出现：
+这一步会做两件事：
 
 ```text
-PASS
-CSim done with 0 errors
-Finished C synthesis
+1. 运行 HLS C 仿真、综合、导出 HLS IP
+2. 运行 RTL LED 控制器 behavioral simulation
 ```
 
-主要生成文件：
+生成/刷新：
 
 ```text
-hls/base_add_prj/solution1/syn/report/base_add_csynth.rpt
-hls/base_add_prj/solution1/impl/ip/
+HLS_REPORT.md
+RTL_REPORT.md
 ```
 
-运行 Vivado overlay 构建：
+运行第 2 步：
 
 ```text
 Ctrl+Shift+P
@@ -169,237 +95,199 @@ Tasks: Run Task
 FPGA: 2 Build Vivado Overlay
 ```
 
-等价的 PowerShell 命令：
-
-```powershell
-& 'G:\Xilinx\Vivado\2018.2\bin\vivado.bat' -mode batch -source vivado\build.tcl
-```
-
-完成这一步后，检查是否出现：
+这一步会：
 
 ```text
-Bitgen Completed Successfully
-Copied bitstream to ...\pynq\base_add.bit
-Copied handoff to ...\pynq\base_add.hwh
+创建 Zynq processing_system7
+连接 base_add_0 HLS IP
+连接 led_ctrl_0 RTL IP
+连接 HLS m_axi_GMEM 到 PS S_AXI_HP0
+导出 LED0~LED3 到 PYNQ-Z2 管脚
+运行综合、实现、生成 bitstream
+复制 bit/hwh 到 pynq/
 ```
 
-主要生成文件：
+生成/刷新：
 
 ```text
 pynq/base_add.bit
 pynq/base_add.hwh
-build/vivado/base_add_overlay.xpr
+VIVADO_OVERLAY_REPORT.md
 ```
 
-## 什么时候需要重新生成
+## Reports
 
-如果你修改了 `hls/src/base_add.cpp` 中的 PL 硬件逻辑，需要重新运行：
+三份报告分工如下：
 
 ```text
-FPGA: 1 Build HLS IP
-FPGA: 2 Build Vivado Overlay
+HLS_REPORT.md
+  只看 HLS：C 仿真、HLS timing、latency、resource、HLS 寄存器偏移
+
+RTL_REPORT.md
+  只看手写 RTL：RTL 源文件、testbench、仿真 PASS/FAIL、RTL 寄存器表、LED 管脚约束
+
+VIVADO_OVERLAY_REPORT.md
+  看最终集成：bit/hwh 是否生成、RTL IP 是否进入 hwh、最终 WNS/时序、资源摘要、当前 pynq 文件列表
 ```
 
-然后把新的文件上传到 PYNQ：
+重点判断：
 
 ```text
-pynq/base_add.bit
-pynq/base_add.hwh
+HLS_REPORT.md              C simulation PASS, Timing PASS, IP export PASS
+RTL_REPORT.md              RTL sim PASS
+VIVADO_OVERLAY_REPORT.md   Bitstream PASS, Routed timing PASS, WNS > 0
 ```
 
-如果你只修改 Python 或 Jupyter 代码，不需要重新运行 HLS 或 Vivado。只需要上传修改后的 `.py` 或 `.ipynb` 文件。
-
-如果你修改了 `base_add.h` 中的函数端口，或者修改了 HLS interface pragma，需要重新运行 HLS 和 Vivado。你可能还需要检查新的寄存器地址，位置在：
+报告可单独刷新：
 
 ```text
-hls/base_add_prj/solution1/impl/misc/drivers/base_add_v1_0/src/xbase_add_hw.h
+FPGA: Generate HLS Report Only
+FPGA: Generate RTL Report Only
+FPGA: Generate Vivado Overlay Report Only
 ```
 
-## 如何检查设计
+## PYNQ Board Run
 
-检查 HLS C 仿真：
-
-```text
-hls/base_add_prj/solution1/csim/report/base_add_csim.log
-```
-
-查找：
-
-```text
-PASS
-CSim done with 0 errors
-```
-
-检查 HLS 综合报告：
-
-```text
-hls/base_add_prj/solution1/syn/report/base_add_csynth.rpt
-```
-
-重点查看：
-
-```text
-Timing
-Latency
-Utilization Estimates
-Interface
-```
-
-检查 Vivado 实现后的时序：
-
-```text
-build/vivado/base_add_overlay.runs/impl_1/system_wrapper_timing_summary_routed.rpt
-```
-
-好的标志是：
-
-```text
-WNS > 0
-All user specified timing constraints are met.
-```
-
-检查 PYNQ 运行结果：
-
-```bash
-python3 base_add_test.py
-```
-
-好的标志是：
-
-```text
-PASS
-```
-
-## 练习 1
-
-目标：把 PL 硬件从加法改成乘法。
-
-1. 编辑 `hls/src/base_add.cpp`。
-
-把：
-
-```cpp
-*result = a + b;
-```
-
-改成：
-
-```cpp
-*result = a * b;
-```
-
-2. 编辑 `hls/tb/test_base_add.cpp`。
-
-把期望结果从 `579` 改为：
-
-```cpp
-123 * 456
-```
-
-3. 运行：
-
-```text
-FPGA: 1 Build HLS IP
-```
-
-确认 C 仿真通过。
-
-4. 运行：
-
-```text
-FPGA: 2 Build Vivado Overlay
-```
-
-确认新的 `base_add.bit` 和 `base_add.hwh` 已生成。
-
-5. 编辑 `pynq/base_add_test.py`。
-
-修改打印文本或断言，让它检查乘法结果：
-
-```python
-assert result == a * b
-```
-
-6. 把新文件上传到 PYNQ：
+上传当前 `pynq/` 下的文件到 PYNQ 板：
 
 ```text
 base_add.bit
 base_add.hwh
-base_add_test.py
+led_ctrl_demo.ipynb
 ```
 
-7. 在 PYNQ 上运行：
-
-```bash
-python3 base_add_test.py
-```
-
-预期结果：
-
-```text
-123 * 456 = 56088
-PASS
-```
-
-## Auto Summary Reports
-
-The VS Code build tasks now generate readable summary reports automatically.
-
-After running:
-
-```text
-FPGA: 1 Build HLS IP
-```
-
-open this file in the project root:
-
-```text
-HLS_REPORT.md
-```
-
-It summarizes C simulation, HLS timing, latency, resource estimate, exported IP
-files, and AXI-Lite register addresses.
-
-After running:
-
-```text
-FPGA: 2 Build Vivado Overlay
-```
-
-open this file in the project root:
-
-```text
-VIVADO_OVERLAY_REPORT.md
-```
-
-It summarizes bitstream generation, `base_add.bit` / `base_add.hwh` update time,
-final routed timing, resource usage, and the next PYNQ upload step.
-
-You can regenerate reports without rebuilding:
-
-```text
-Ctrl+Shift+P -> Tasks: Run Task -> FPGA: Generate HLS Report Only
-Ctrl+Shift+P -> Tasks: Run Task -> FPGA: Generate Vivado Overlay Report Only
-```
-
-The original Vivado/HLS logs are kept unchanged. Read the summary reports first,
-and open raw `.log` or `.rpt` files only when something fails.
-
-## Jupyter Note
-
-You do not need the VS Code Jupyter extension to run this project on PYNQ.
-
-For board testing, use the PYNQ web page in your browser:
+打开 PYNQ 浏览器 Jupyter：
 
 ```text
 http://192.168.2.99:9090
 ```
 
-Then upload and open:
+打开并运行：
 
 ```text
-base_add_demo.ipynb
+led_ctrl_demo.ipynb
 ```
 
-The VS Code Jupyter extension is only for viewing or editing notebooks on the PC
-side. It is optional.
+它会加载 `base_add.bit`，从 `base_add.hwh` 自动读取 `led_ctrl_0` 的真实 AXI-Lite 地址，然后切换 LED 模式。
+
+当前 Vivado 生成日志里 `led_ctrl_0` 的真实基地址是：
+
+```text
+0x43C10000
+```
+
+但 Python / ipynb 中不要硬编码这个基地址，优先从 `.hwh` / `overlay.ip_dict` 获取。
+
+## Current Register Maps
+
+### RTL LED Controller
+
+这是 RTL 模块内部 offset，真实 base address 以 `.hwh` / Vivado 日志为准。
+
+```text
+0x00 CTRL        bit0 enable, bits[3:1] mode
+0x04 SPEED_DIV   blink/walk/counter 分频
+0x08 LED_VALUE   手动 LED 值，bits[3:0]
+0x0C STATUS      bits[3:0] 当前 LED，bits[7:4] tick counter
+```
+
+模式：
+
+```text
+0 direct
+1 blink
+2 walk
+3 counter
+```
+
+### HLS Fake Capture
+
+HLS 寄存器偏移以生成文件为准：
+
+```text
+hls/base_add_prj/solution1/impl/misc/drivers/base_add_v1_0/src/xbase_add_hw.h
+```
+
+当前常用 offset：
+
+```text
+0x00 AP_CTRL
+0x10 BUFFER_R_DATA
+0x18 SAMPLE_COUNT_DATA
+```
+
+## What To Edit
+
+开发 HLS fake capture / 后续 HLS 采样搬运：
+
+```text
+hls/src/base_add.cpp
+hls/src/base_add.h
+hls/tb/test_base_add.cpp
+```
+
+开发手写 RTL / 后续 ADC 采样状态机：
+
+```text
+rtl/src/*.v
+rtl/tb/*.v
+rtl/sim_*.tcl
+constraints/*.xdc
+```
+
+开发 PYNQ 端控制、分析、画图：
+
+```text
+pynq/*.ipynb
+pynq/*.py
+```
+
+不要手动编辑这些生成目录：
+
+```text
+hls/base_add_prj/
+build/
+.Xil/
+```
+
+不要编辑 Xilinx 安装目录里的库文件，例如：
+
+```text
+G:\Xilinx\Vivado\2018.2\include\ap_int.h
+```
+
+## When To Rebuild
+
+改这些，需要重新跑第 1 步和第 2 步：
+
+```text
+hls/src/*.cpp
+hls/src/*.h
+hls/tb/*.cpp
+rtl/src/*.v
+rtl/tb/*.v
+constraints/*.xdc
+vivado/build.tcl
+HLS 函数端口
+HLS pragma
+RTL 模块端口
+```
+
+只改这些，不需要重新生成 bit/hwh：
+
+```text
+pynq/*.py
+pynq/*.ipynb
+Python 数据分析
+Jupyter 显示逻辑
+```
+
+## Development Habit
+
+1. 先写 testbench。
+2. 先跑 `FPGA: 1 Build HLS IP`，确认 HLS/RTL 仿真 PASS。
+3. 再跑 `FPGA: 2 Build Vivado Overlay`，确认 bitstream 和 WNS PASS。
+4. 再上传 `pynq/` 文件到板子。
+5. Python/ipynb 遇到地址，优先查 `.hwh`、Vivado 日志、HLS 生成头文件，不靠猜。
+
+下一步接 ADC 时，建议先加一个 `rtl/src/adc_capture_stub.v`，用计数器模拟 ADC 数据，确认 PS/PL 数据通路稳定后再接真实 AD9238。
