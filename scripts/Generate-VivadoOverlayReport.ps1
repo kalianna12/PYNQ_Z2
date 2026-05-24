@@ -118,6 +118,38 @@ $dmaBdStatus = if (($buildText -match "create_bd_cell.*axi_dma_0") -and ($buildT
 $axisFifoBdStatus = if (($buildText -match "create_bd_cell.*axis_data_fifo_0") -and ($buildText -match "axis_data_fifo_0/S_AXIS") -and ($buildText -match "axis_data_fifo_0/M_AXIS")) { "PASS" } elseif (Test-Path $BuildTcl) { "CHECK" } else { "MISSING" }
 $dmaLiteGpStatus = if (($hwhText -match "INSTANCE=`"axi_dma_0`"") -and ($hwhText -match "MASTERBUSINTERFACE=`"M_AXI_GP0`"") -and ($hwhText -match "SLAVEBUSINTERFACE=`"S_AXI_LITE`"")) { "PASS" } elseif (Test-Path $HwhFile) { "CHECK" } else { "MISSING" }
 $dmaIrqStatus = if (($buildText -match "s2mm_introut.*IRQ_F2P") -or ($hwhText -match "s2mm_introut.*IRQ_F2P")) { "PASS" } else { "OPTIONAL" }
+$dmaLengthWidth = ""
+if ($hwhText -match 'NAME="c_sg_length_width"\s+VALUE="([^"]+)"') {
+    $dmaLengthWidth = $Matches[1]
+}
+$dmaSg = ""
+if ($hwhText -match 'NAME="c_include_sg"\s+VALUE="([^"]+)"') {
+    $dmaSg = $Matches[1]
+}
+$dmaMm2s = ""
+if ($hwhText -match 'NAME="c_include_mm2s"\s+VALUE="([^"]+)"') {
+    $dmaMm2s = $Matches[1]
+}
+$dmaS2mm = ""
+if ($hwhText -match 'NAME="c_include_s2mm"\s+VALUE="([^"]+)"') {
+    $dmaS2mm = $Matches[1]
+}
+$dmaMDataWidth = ""
+if ($hwhText -match 'NAME="c_m_axi_s2mm_data_width"\s+VALUE="([^"]+)"') {
+    $dmaMDataWidth = $Matches[1]
+}
+$dmaSDataWidth = ""
+if ($hwhText -match 'NAME="c_s_axis_s2mm_tdata_width"\s+VALUE="([^"]+)"') {
+    $dmaSDataWidth = $Matches[1]
+}
+$dmaMaxTransferBytes = 0
+if ($dmaLengthWidth -match '^\d+$') {
+    $dmaMaxTransferBytes = [int64]([math]::Pow(2, [int]$dmaLengthWidth) - 1)
+}
+$dmaModeStatus = if (($dmaSg -eq "0") -and ($dmaMm2s -eq "0") -and ($dmaS2mm -eq "1")) { "PASS" } elseif ($dmaSg -or $dmaMm2s -or $dmaS2mm) { "FAIL" } elseif (Test-Path $HwhFile) { "CHECK" } else { "MISSING" }
+$dmaDataWidthStatus = if (($dmaMDataWidth -in @("32", "64")) -and ($dmaSDataWidth -eq "32")) { "PASS" } elseif ($dmaMDataWidth -or $dmaSDataWidth) { "FAIL" } elseif (Test-Path $HwhFile) { "CHECK" } else { "MISSING" }
+$dmaLengthWidthStatus = if ($dmaLengthWidth -eq "23") { "PASS" } elseif ($dmaLengthWidth) { "FAIL" } elseif (Test-Path $HwhFile) { "CHECK" } else { "MISSING" }
+$dmaMaxTransferStatus = if ($dmaMaxTransferBytes -ge 262144) { "PASS" } elseif ($dmaMaxTransferBytes -gt 0) { "FAIL" } elseif (Test-Path $HwhFile) { "CHECK" } else { "MISSING" }
 $fclk0Hz = ""
 if ($hwhText -match 'PCW_CLK0_FREQ"\s+VALUE="([^"]+)"') {
     $fclk0Hz = $Matches[1]
@@ -170,6 +202,10 @@ Generated: **$now**
 | DMA S2MM to PS HP0 | $(Status-Badge $dmaHpStatus) | axi_dma_0/M_AXI_S2MM reaches PS DDR through S_AXI_HP0 |
 | DMA S_AXI_LITE to PS GP0 | $(Status-Badge $dmaLiteGpStatus) | PS can configure DMA registers through M_AXI_GP0 |
 | DMA S2MM interrupt | $(Status-Badge $dmaIrqStatus) | Optional; current PYNQ flow can use polling/wait |
+| AXI DMA mode | $(Status-Badge $dmaModeStatus) | SG=$dmaSg, MM2S=$dmaMm2s, S2MM=$dmaS2mm |
+| AXI DMA data widths | $(Status-Badge $dmaDataWidthStatus) | M_AXI_S2MM=$dmaMDataWidth bits, S_AXIS_S2MM=$dmaSDataWidth bits |
+| AXI DMA Buffer Length Register Width | $(Status-Badge $dmaLengthWidthStatus) | c_sg_length_width = $dmaLengthWidth; required value is 23 |
+| Max DMA transfer bytes | $(Status-Badge $dmaMaxTransferStatus) | Max BTT = $dmaMaxTransferBytes bytes; 65536 samples need 262144 bytes |
 | FCLK_CLK0 in HWH | $(Status-Badge $fclkStatus) | $fclkNote |
 | Routed timing | $(Status-Badge $timingStatus) | Final implemented timing result |
 

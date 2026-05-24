@@ -28,6 +28,7 @@ Evidence:
 - `vivado/build.tcl` connects `axis_data_fifo_0/M_AXIS` to `axi_dma_0/S_AXIS_S2MM`.
 - `vivado/build.tcl` connects `axi_dma_0/M_AXI_S2MM` to `processing_system7_0/S_AXI_HP0`.
 - `vivado/build.tcl` connects `axi_dma_0/S_AXI_LITE` to PS `M_AXI_GP0`.
+- `axi_dma_0` uses `c_sg_length_width = 23`, so the maximum BTT is 8,388,607 bytes.
 - `pynq/base_add.hwh` contains `axi_dma_0`, `axis_data_fifo_0`, `TKEEP`, `TLAST`, and the HP0 memory range.
 - `VIVADO_OVERLAY_REPORT.md` reports DMA/FIFO/HP0 rows as `PASS`.
 

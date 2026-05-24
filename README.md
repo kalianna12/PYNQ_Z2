@@ -21,6 +21,7 @@ Current evidence:
 - `vivado/build.tcl` creates `axi_dma_0` and `axis_data_fifo_0`.
 - `vivado/build.tcl` connects capture AXI-Stream to FIFO, FIFO to DMA S2MM, DMA S2MM to PS HP0.
 - `pynq/base_add.hwh` contains `axi_dma_0`, `axis_data_fifo_0`, TKEEP/TLAST, and HP0 memory mapping.
+- `axi_dma_0` now uses a 23-bit buffer length register, supporting 65536 packed samples.
 - `VIVADO_OVERLAY_REPORT.md` reports the DMA/FIFO/HP0 rows as `PASS`.
 - `RTL_REPORT.md` reports the RTL capture chain simulation as `PASS`.
 
