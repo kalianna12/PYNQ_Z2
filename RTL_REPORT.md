@@ -1,6 +1,6 @@
 ﻿# RTL Report
 
-Generated: **2026-05-25 02:06:13**
+Generated: **2026-06-03 05:28:33**
 
 ## 1. RTL Simulation Status
 
@@ -8,6 +8,7 @@ Generated: **2026-05-25 02:06:13**
 |---|---|---|
 | LED AXI-Lite simulation | <span style="color:#008000;font-weight:bold;font-size:16px;">PASS</span> | Existing PS-controlled LED RTL testbench |
 | AD9226 capture simulation | <span style="color:#008000;font-weight:bold;font-size:16px;">PASS</span> | New capture_core + FIFO fake/real stream testbench |
+| AD9226 high-speed AXIS simulation | <span style="color:#008000;font-weight:bold;font-size:16px;">PASS</span> | adc_half=1 fake and real stream, no dropped samples when tready stays high |
 | Overall RTL simulation | <span style="color:#008000;font-weight:bold;font-size:16px;">PASS</span> | All RTL testbenches before Vivado overlay integration |
 
 Key result:
@@ -15,6 +16,7 @@ Key result:
 ~~~text
 FINAL: PASS led_ctrl_axi direct/blink/walk/counter modes
 FINAL: PASS ad9226 capture fake/real/fifo overflow/decimation/pre_delay config rules
+FINAL: PASS highspeed adc_half=1 fake and real AXIS stream
 ~~~
 
 ## 2. RTL Source Files
@@ -32,6 +34,7 @@ FINAL: PASS ad9226 capture fake/real/fifo overflow/decimation/pre_delay config r
 | File | Status | Last Write Time |
 |---|---|---|
 | tb_ad9226_capture_chain.v | <span style="color:#008000;font-weight:bold;">FOUND</span> | 2026-05-25 01:48:57 |
+| tb_ad9226_capture_highspeed.v | <span style="color:#008000;font-weight:bold;">FOUND</span> | 2026-06-03 05:16:12 |
 | tb_led_ctrl_axi.v | <span style="color:#008000;font-weight:bold;">FOUND</span> | 2026-05-24 17:03:36 |
 
 ## 4. Simulated Register Map
@@ -115,6 +118,18 @@ AD9226 capture inner xsim log:
 
 ~~~text
 G:\VSCODE_Save_Files\PYNQ_Z2Code\PYNQZ2_PSPL_Base\rtl\sim\ad9226_capture_sim.sim\sim_1\behav\xsim\simulate.log
+~~~
+
+AD9226 high-speed Vivado simulation log:
+
+~~~text
+G:\VSCODE_Save_Files\PYNQ_Z2Code\PYNQZ2_PSPL_Base\rtl\sim_highspeed\ad9226_highspeed_sim.log
+~~~
+
+AD9226 high-speed inner xsim log:
+
+~~~text
+G:\VSCODE_Save_Files\PYNQ_Z2Code\PYNQZ2_PSPL_Base\rtl\sim_highspeed\ad9226_highspeed_sim.sim\sim_1\behav\xsim\simulate.log
 ~~~
 
 ## 7. Next Step

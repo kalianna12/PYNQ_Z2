@@ -87,10 +87,13 @@ VS Code task: FPGA: Generate Vivado Overlay Report Only
 Open `VIVADO_OVERLAY_REPORT.md`. For DMA version, these rows must be PASS:
 
 ```text
+FCLK_CLK0 in HWH
 AXI DMA S2MM in HWH
 AXI DMA in BD script
 AXIS Data FIFO in HWH
 AXIS Data FIFO in BD script
+AXIS Data FIFO depth
+AXI DMA data widths
 adc_capture_0 to AXIS FIFO
 AXIS FIFO to DMA S2MM
 DMA S2MM to PS HP0
@@ -115,6 +118,16 @@ adc_capture_0/M_AXIS_SAMPLE
   -> processing_system7_0/S_AXI_HP0
 ```
 
+Current high-speed settings:
+
+```text
+FCLK_CLK0 = 125 MHz
+AXIS Data FIFO depth = 16384 words
+AXI DMA M_AXI_S2MM = 64 bits
+AXI DMA S_AXIS_S2MM = 32 bits
+PYNQ buffer dtype = np.uint32
+```
+
 ## 5. Board Test Order
 
 First test without real ADC:
@@ -127,6 +140,9 @@ This uses:
 
 ```text
 capture_mode=2
+sample_count=65536
+adc_half_period=1
+expected ADC_CLK = 62.5 MHz
 ```
 
 Expected checks:

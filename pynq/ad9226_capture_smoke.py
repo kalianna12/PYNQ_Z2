@@ -35,7 +35,7 @@ CORE_DONE = 0x6C
 
 S2MM_DMASR = 0x34
 SENTINEL = np.uint32(0xDEADBEEF)
-PL_CLK_HZ = 31_250_000
+PL_CLK_HZ = 125_000_000
 MAX_SAMPLE_N = 65536
 
 
@@ -94,14 +94,14 @@ def dump_ctrl(ctrl):
     print("VERSION         = 0x%08X" % ctrl.read(VERSION))
 
 
-def configure_capture(ctrl, sample_count, adc_half_period, decimation, capture_mode):
+def configure_capture(ctrl, sample_count, adc_half_period, decimation, capture_mode, sample_delay=1):
     ctrl.write(CTRL, 0x04)
     ctrl.write(CTRL, 0x00)
     ctrl.write(ERROR_FLAGS, 0xFFFFFFFF)
 
     ctrl.write(SAMPLE_COUNT, sample_count)
     ctrl.write(ADC_HALF, adc_half_period)
-    ctrl.write(SAMPLE_DELAY, 1)
+    ctrl.write(SAMPLE_DELAY, sample_delay)
     ctrl.write(DECIMATION, decimation)
     ctrl.write(CHANNEL_MASK, 0b11)
     ctrl.write(CAPTURE_MODE, capture_mode)
@@ -110,13 +110,14 @@ def configure_capture(ctrl, sample_count, adc_half_period, decimation, capture_m
     ctrl.write(BUFFER_SELECT, 0)
 
 
-def run_dma_capture(ctrl, dma, sample_count=1024, adc_half_period=12, decimation=1, capture_mode=2):
+def run_dma_capture(ctrl, dma, sample_count=65536, adc_half_period=1, decimation=1, capture_mode=2, sample_delay=1):
     if capture_mode == 0:
         raise ValueError("capture_mode=0 is the legacy HLS-writer fake mode and is not valid for AXI DMA.")
 
     sample_count = min(max(int(sample_count), 1), MAX_SAMPLE_N)
     adc_half_period = max(int(adc_half_period), 1)
     decimation = max(int(decimation), 1)
+    sample_delay = min(max(int(sample_delay), 0), 31)
     actual_fs = PL_CLK_HZ / (2 * adc_half_period)
 
     buf = allocate(shape=(sample_count,), dtype=np.uint32)
@@ -124,7 +125,7 @@ def run_dma_capture(ctrl, dma, sample_count=1024, adc_half_period=12, decimation
     buf.flush()
 
     dma.recvchannel.transfer(buf)
-    configure_capture(ctrl, sample_count, adc_half_period, decimation, capture_mode)
+    configure_capture(ctrl, sample_count, adc_half_period, decimation, capture_mode, sample_delay)
 
     ctrl.write(CTRL, 0x01)
     ctrl.write(CTRL, 0x03)
@@ -141,6 +142,7 @@ def run_dma_capture(ctrl, dma, sample_count=1024, adc_half_period=12, decimation
 
     print("DMA wait elapsed = %.6f s" % elapsed)
     print("target Fs        = %.3f MSPS" % (actual_fs / 1e6))
+    print("sample_delay     = %d FCLK cycles" % sample_delay)
     dump_ctrl(ctrl)
     dump_dma(dma)
 
@@ -158,25 +160,64 @@ def run_dma_capture(ctrl, dma, sample_count=1024, adc_half_period=12, decimation
     return raw, ch0, ch1
 
 
-overlay = Overlay("base_add.bit")
-print("Loaded overlay.")
-print("IP names:", list(overlay.ip_dict.keys()))
+def sweep_real_adc_sample_delay(ctrl, dma, sample_count=4096, adc_half_period=1, delays=(0, 1, 2, 3), decimation=1):
+    results = []
+    for delay in delays:
+        print("\n=== real ADC sample_delay=%d ===" % delay)
+        raw, ch0, ch1 = run_dma_capture(
+            ctrl,
+            dma,
+            sample_count=sample_count,
+            adc_half_period=adc_half_period,
+            decimation=decimation,
+            capture_mode=1,
+            sample_delay=delay,
+        )
+        results.append({
+            "sample_delay": delay,
+            "ch0_vpp": int(ch0.max() - ch0.min()),
+            "ch1_vpp": int(ch1.max() - ch1.min()),
+            "ch0_mean": float(ch0.mean()),
+            "ch1_mean": float(ch1.mean()),
+        })
+        print("delay=%d CH0 mean/Vpp %.2f/%d CH1 mean/Vpp %.2f/%d" % (
+            delay,
+            results[-1]["ch0_mean"],
+            results[-1]["ch0_vpp"],
+            results[-1]["ch1_mean"],
+            results[-1]["ch1_vpp"],
+        ))
+    return results
 
-ctrl_name, ctrl = find_overlay_attr(overlay, "adc_capture")
-dma_name, dma = find_overlay_attr(overlay, "dma")
-print("Capture IP:", ctrl_name, hex(overlay.ip_dict[ctrl_name]["phys_addr"]))
-print("DMA IP    :", dma_name, hex(overlay.ip_dict[dma_name]["phys_addr"]))
-print("Use IP-local offsets with ctrl.write(offset, value), do not add base address.")
 
-print("\nRunning capture_mode=2 fake stream -> AXIS FIFO -> AXI DMA -> DDR...")
-raw, ch0, ch1 = run_dma_capture(ctrl, dma, sample_count=1024, adc_half_period=12, capture_mode=2)
+def open_default_overlay(bitfile="base_add.bit"):
+    overlay = Overlay(bitfile)
+    ctrl_name, ctrl = find_overlay_attr(overlay, "adc_capture")
+    dma_name, dma = find_overlay_attr(overlay, "dma")
+    print("Loaded overlay.")
+    print("IP names:", list(overlay.ip_dict.keys()))
+    print("Capture IP:", ctrl_name, hex(overlay.ip_dict[ctrl_name]["phys_addr"]))
+    print("DMA IP    :", dma_name, hex(overlay.ip_dict[dma_name]["phys_addr"]))
+    print("Use IP-local offsets with ctrl.write(offset, value), do not add base address.")
+    return overlay, ctrl, dma
 
-expected = np.arange(len(ch0), dtype=np.uint32) & np.uint32(0x0FFF)
-if not np.array_equal(ch0, expected):
-    raise RuntimeError(f"CH0 fake mismatch: got {ch0[:8].tolist()}, expected {expected[:8].tolist()}")
-if not np.array_equal(ch1, np.uint32(4095) - expected):
-    raise RuntimeError("CH1 fake mismatch.")
 
-print("CH0 first 16:", ch0[:16].tolist())
-print("CH1 first 16:", ch1[:16].tolist())
-print("\nPASS: DMA fake-stream capture path is alive.")
+def main():
+    overlay, ctrl, dma = open_default_overlay()
+
+    print("\nRunning capture_mode=2 fake stream -> AXIS FIFO -> AXI DMA -> DDR...")
+    raw, ch0, ch1 = run_dma_capture(ctrl, dma, sample_count=65536, adc_half_period=1, capture_mode=2)
+
+    expected = np.arange(len(ch0), dtype=np.uint32) & np.uint32(0x0FFF)
+    if not np.array_equal(ch0, expected):
+        raise RuntimeError(f"CH0 fake mismatch: got {ch0[:8].tolist()}, expected {expected[:8].tolist()}")
+    if not np.array_equal(ch1, np.uint32(4095) - expected):
+        raise RuntimeError("CH1 fake mismatch.")
+
+    print("CH0 first 16:", ch0[:16].tolist())
+    print("CH1 first 16:", ch1[:16].tolist())
+    print("\nPASS: DMA fake-stream capture path is alive.")
+
+
+if __name__ == "__main__":
+    main()

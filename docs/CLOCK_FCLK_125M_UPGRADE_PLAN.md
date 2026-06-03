@@ -2,7 +2,15 @@
 
 Last reviewed: 2026-06-03
 
-This document records the current clock path, current parameters, and a proposed upgrade plan for reaching higher AD9226/DMA capture performance. No RTL/TCL/Python code has been changed for this document.
+This document records the current clock path, current parameters, and the staged upgrade plan for higher AD9226/DMA capture performance. The first high-speed upgrade stage has now been implemented:
+
+```text
+FCLK_CLK0 = 125 MHz
+AXIS Data FIFO depth = 16384 words
+AXI DMA M_AXI_S2MM = 64 bits
+AXIS S_AXIS_S2MM = 32 bits
+Python PL_CLK_HZ = 125_000_000
+```
 
 ## 1. Current Clock Source
 
@@ -55,9 +63,9 @@ Conclusion: the AI suggestion is correct on the main clock-source point. The pro
 Current generated HWH reports:
 
 ```text
-PCW_FPGA0_PERIPHERAL_FREQMHZ = 50
-PCW_CLK0_FREQ               = 50000000
-FCLK_CLK0 CLKFREQUENCY      = 50000000
+PCW_FPGA0_PERIPHERAL_FREQMHZ = 125.000000
+PCW_CLK0_FREQ               = 125000000
+FCLK_CLK0 CLKFREQUENCY      = 125000000
 S_AXI_HP0_ACLK              = FCLK_CLK0
 M_AXI_GP0_ACLK              = FCLK_CLK0
 axi_dma_0/m_axi_s2mm_aclk   = FCLK_CLK0
@@ -65,13 +73,13 @@ axis_data_fifo_0/s_axis_aclk = FCLK_CLK0
 adc_capture_0/S_AXI_ACLK    = FCLK_CLK0
 ```
 
-Current PYNQ scripts still use:
+Current PYNQ scripts use:
 
 ```python
-PL_CLK_HZ = 31_250_000
+PL_CLK_HZ = 125_000_000
 ```
 
-This is inconsistent with the generated HWH, which says 50 MHz. Treat printed sample-rate numbers as untrusted until the real FCLK is measured or deliberately configured.
+The generated HWH, report script, and Python constants are now aligned at 125 MHz.
 
 Recommended confirmation before changing the architecture:
 
@@ -92,27 +100,7 @@ adc_clk_div_r toggles every ADC_HALF_PERIOD FCLK cycles
 ADC_CLK = FCLK_CLK0 / (2 * ADC_HALF_PERIOD)
 ```
 
-For current HWH-declared 50 MHz FCLK:
-
-```text
-ADC_HALF = 1  -> 25.000 MSPS
-ADC_HALF = 2  -> 12.500 MSPS
-ADC_HALF = 3  ->  8.333 MSPS
-ADC_HALF = 6  ->  4.167 MSPS
-ADC_HALF = 12 ->  2.083 MSPS
-```
-
-For measured 31.25 MHz FCLK:
-
-```text
-ADC_HALF = 1  -> 15.625 MSPS
-ADC_HALF = 2  ->  7.8125 MSPS
-ADC_HALF = 3  ->  5.208 MSPS
-ADC_HALF = 6  ->  2.604 MSPS
-ADC_HALF = 12 ->  1.302 MSPS
-```
-
-For target 125 MHz FCLK:
+For current 125 MHz FCLK:
 
 ```text
 ADC_HALF = 1  -> 62.5 MSPS
@@ -158,7 +146,7 @@ ADC_CLK period = 2 FCLK cycles
 ADC_CLK = 62.5 MHz when FCLK = 125 MHz
 ```
 
-So the next performance step is first to make `FCLK_CLK0 = 125 MHz`. A true `D1=1, D2=0` ODDR branch is useful if a future design needs a 125 MHz output clock for a different ADC.
+So the implemented high-speed AD9226 mode keeps the divider and uses `adc_half_period=1` for 62.5 MSPS. A true `D1=1, D2=0` ODDR branch is useful only if a future design needs a 125 MHz output clock for a different ADC.
 
 ## 5. Current DMA/AXIS Parameters
 
@@ -180,10 +168,10 @@ Scatter Gather        = disabled
 MM2S                  = disabled
 S2MM                  = enabled
 S_AXIS_S2MM width     = 32 bits
-M_AXI_S2MM width      = 32 bits
+M_AXI_S2MM width      = 64 bits
 Buffer length width   = 23 bits
 Max BTT               = 8,388,607 bytes
-AXIS Data FIFO depth  = 4096 words
+AXIS Data FIFO depth  = 16384 words
 HP0 data width        = 64 bits at the PS interface
 HP0 clock             = FCLK_CLK0
 ```
@@ -196,7 +184,7 @@ The BTT-size problem has been fixed. Large transfers such as:
 
 are now within the DMA transfer-length limit.
 
-The remaining bottleneck is clock/data-path throughput, not DMA BTT width.
+The remaining bottleneck, if any, is board-level real ADC timing or stream/DDR throughput under full-speed load, not DMA BTT width.
 
 ## 6. Performance Target Reality Check
 

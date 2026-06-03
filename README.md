@@ -167,7 +167,8 @@ PYNQ `ip.write(offset, value)` and `ip.read(offset)` use IP-local offsets. Do no
 ## Review Notes
 
 - `adc_sample_fifo.v` is currently a one-word AXI-Stream packer/skid stage. Deep buffering is provided by Vivado `axis_data_fifo_0`.
-- `pynq/base_add.hwh` declares `FCLK_CLK0` as 50 MHz, while the current PYNQ scripts use `PL_CLK_HZ = 31_250_000` from board measurement. Confirm the real clock before using printed sample-rate numbers.
+- Current generated `pynq/base_add.hwh` declares `FCLK_CLK0` as 125 MHz, and PYNQ scripts use `PL_CLK_HZ = 125_000_000`.
+- Current high-speed DMA settings are AXIS Data FIFO depth 16384 words, AXI DMA `M_AXI_S2MM` 64-bit, and AXIS `S_AXIS_S2MM` still 32-bit packed `uint32`.
 - The current ODDR usage is an output register for the divided ADC clock, not the future fast `D1=1, D2=0` ODDR clock generator.
 - DMA interrupt is optional in this polling/wait flow.
 - A digital timing PASS does not prove external AD9226 wiring works at the highest sample rates.

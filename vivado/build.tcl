@@ -34,7 +34,11 @@ update_ip_catalog
 create_bd_design $design_name
 
 create_bd_cell -type ip -vlnv xilinx.com:ip:processing_system7:5.5 processing_system7_0
-set_property -dict [list CONFIG.PCW_USE_S_AXI_HP0 {1}] [get_bd_cells processing_system7_0]
+set_property -dict [list \
+    CONFIG.PCW_USE_S_AXI_HP0 {1} \
+    CONFIG.PCW_EN_CLK0_PORT {1} \
+    CONFIG.PCW_FPGA0_PERIPHERAL_FREQMHZ {125.000000} \
+] [get_bd_cells processing_system7_0]
 
 apply_bd_automation -rule xilinx.com:bd_rule:processing_system7 \
     -config {make_external "FIXED_IO, DDR"} \
@@ -108,7 +112,7 @@ set axis_fifo_vlnv [lindex $axis_fifo_ipdefs 0]
 create_bd_cell -type ip -vlnv $axis_fifo_vlnv axis_data_fifo_0
 set_property -dict [list \
     CONFIG.TDATA_NUM_BYTES {4} \
-    CONFIG.FIFO_DEPTH {4096} \
+    CONFIG.FIFO_DEPTH {16384} \
     CONFIG.HAS_TLAST {1} \
     CONFIG.HAS_TKEEP {1} \
 ] [get_bd_cells axis_data_fifo_0]
@@ -125,7 +129,7 @@ set_property -dict [list \
     CONFIG.c_include_mm2s {0} \
     CONFIG.c_include_s2mm {1} \
     CONFIG.c_sg_length_width {23} \
-    CONFIG.c_m_axi_s2mm_data_width {32} \
+    CONFIG.c_m_axi_s2mm_data_width {64} \
     CONFIG.c_s2mm_burst_size {16} \
 ] [get_bd_cells axi_dma_0]
 

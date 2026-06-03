@@ -8,6 +8,8 @@ $RtlSimLog = Join-Path $Root "rtl\sim\led_ctrl_axi_sim.log"
 $RtlInnerSimLog = Join-Path $Root "rtl\sim\led_ctrl_axi_sim.sim\sim_1\behav\xsim\simulate.log"
 $AdcRtlSimLog = Join-Path $Root "rtl\sim\ad9226_capture_sim.log"
 $AdcInnerSimLog = Join-Path $Root "rtl\sim\ad9226_capture_sim.sim\sim_1\behav\xsim\simulate.log"
+$HighSpeedRtlSimLog = Join-Path $Root "rtl\sim_highspeed\ad9226_highspeed_sim.log"
+$HighSpeedInnerSimLog = Join-Path $Root "rtl\sim_highspeed\ad9226_highspeed_sim.sim\sim_1\behav\xsim\simulate.log"
 $LedXdc = Join-Path $Root "constraints\pynqz2_leds.xdc"
 
 function Read-AllTextSafe($Path) {
@@ -43,7 +45,9 @@ $simText = Read-AllTextSafe $RtlSimLog
 $innerSimText = Read-AllTextSafe $RtlInnerSimLog
 $adcSimText = Read-AllTextSafe $AdcRtlSimLog
 $adcInnerSimText = Read-AllTextSafe $AdcInnerSimLog
-$combinedSimText = "$simText`n$innerSimText`n$adcSimText`n$adcInnerSimText"
+$highSpeedSimText = Read-AllTextSafe $HighSpeedRtlSimLog
+$highSpeedInnerSimText = Read-AllTextSafe $HighSpeedInnerSimLog
+$combinedSimText = "$simText`n$innerSimText`n$adcSimText`n$adcInnerSimText`n$highSpeedSimText`n$highSpeedInnerSimText"
 
 $ledSimStatus = if ("$simText`n$innerSimText" -match "FINAL: PASS") {
     "PASS"
@@ -65,11 +69,21 @@ $adcSimStatus = if ("$adcSimText`n$adcInnerSimText" -match "FINAL: PASS") {
     "MISSING"
 }
 
-$rtlSimStatus = if (($ledSimStatus -eq "PASS") -and ($adcSimStatus -eq "PASS")) {
+$highSpeedSimStatus = if ("$highSpeedSimText`n$highSpeedInnerSimText" -match "FINAL: PASS") {
     "PASS"
-} elseif (($ledSimStatus -eq "FAIL") -or ($adcSimStatus -eq "FAIL")) {
+} elseif ("$highSpeedSimText`n$highSpeedInnerSimText" -match "FINAL: FAIL|ERROR:") {
     "FAIL"
-} elseif (($ledSimStatus -eq "MISSING") -or ($adcSimStatus -eq "MISSING")) {
+} elseif ((Test-Path $HighSpeedRtlSimLog) -or (Test-Path $HighSpeedInnerSimLog)) {
+    "CHECK"
+} else {
+    "MISSING"
+}
+
+$rtlSimStatus = if (($ledSimStatus -eq "PASS") -and ($adcSimStatus -eq "PASS") -and ($highSpeedSimStatus -eq "PASS")) {
+    "PASS"
+} elseif (($ledSimStatus -eq "FAIL") -or ($adcSimStatus -eq "FAIL") -or ($highSpeedSimStatus -eq "FAIL")) {
+    "FAIL"
+} elseif (($ledSimStatus -eq "MISSING") -or ($adcSimStatus -eq "MISSING") -or ($highSpeedSimStatus -eq "MISSING")) {
     "MISSING"
 } else {
     "CHECK"
@@ -87,6 +101,12 @@ if (Test-Path $AdcRtlSimLog) {
 }
 if (Test-Path $AdcInnerSimLog) {
     $finalLines += Select-String -Path $AdcInnerSimLog -Pattern "FINAL:" | ForEach-Object { $_.Line.Trim() }
+}
+if (Test-Path $HighSpeedRtlSimLog) {
+    $finalLines += Select-String -Path $HighSpeedRtlSimLog -Pattern "FINAL:" | ForEach-Object { $_.Line.Trim() }
+}
+if (Test-Path $HighSpeedInnerSimLog) {
+    $finalLines += Select-String -Path $HighSpeedInnerSimLog -Pattern "FINAL:" | ForEach-Object { $_.Line.Trim() }
 }
 $finalText = (($finalLines | Select-Object -Unique) -join "`n").Trim()
 
@@ -137,6 +157,7 @@ Generated: **$now**
 |---|---|---|
 | LED AXI-Lite simulation | $(Status-Badge $ledSimStatus) | Existing PS-controlled LED RTL testbench |
 | AD9226 capture simulation | $(Status-Badge $adcSimStatus) | New capture_core + FIFO fake/real stream testbench |
+| AD9226 high-speed AXIS simulation | $(Status-Badge $highSpeedSimStatus) | adc_half=1 fake and real stream, no dropped samples when tready stays high |
 | Overall RTL simulation | $(Status-Badge $rtlSimStatus) | All RTL testbenches before Vivado overlay integration |
 
 Key result:
@@ -191,6 +212,14 @@ AD9226 capture inner xsim log:
 
 $(Code-Block $AdcInnerSimLog)
 
+AD9226 high-speed Vivado simulation log:
+
+$(Code-Block $HighSpeedRtlSimLog)
+
+AD9226 high-speed inner xsim log:
+
+$(Code-Block $HighSpeedInnerSimLog)
+
 ## 7. Next Step
 
 If this report shows **PASS**, run:
@@ -207,6 +236,7 @@ Write-Host "Report file : $Out"
 Write-Host "Generated at: $now"
 Write-Host "LED sim     : $ledSimStatus"
 Write-Host "AD9226 sim  : $adcSimStatus"
+Write-Host "Highspeed   : $highSpeedSimStatus"
 if ($rtlSimStatus -eq "PASS") {
     Write-Host "RTL sim     : PASS" -ForegroundColor Green
 } elseif ($rtlSimStatus -eq "FAIL" -or $rtlSimStatus -eq "MISSING") {

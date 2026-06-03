@@ -1,6 +1,6 @@
 # Project Status
 
-Last reviewed: 2026-05-25
+Last reviewed: 2026-06-03
 
 ## Current Architecture
 
@@ -29,8 +29,12 @@ Evidence:
 - `vivado/build.tcl` connects `axi_dma_0/M_AXI_S2MM` to `processing_system7_0/S_AXI_HP0`.
 - `vivado/build.tcl` connects `axi_dma_0/S_AXI_LITE` to PS `M_AXI_GP0`.
 - `axi_dma_0` uses `c_sg_length_width = 23`, so the maximum BTT is 8,388,607 bytes.
+- `processing_system7_0/FCLK_CLK0` is configured to 125 MHz and drives capture, AXIS FIFO, DMA, and HP0 clocks.
+- `axis_data_fifo_0` is configured to 16384 words.
+- `axi_dma_0` keeps `S_AXIS_S2MM` at 32 bits and uses 64-bit `M_AXI_S2MM`.
 - `pynq/base_add.hwh` contains `axi_dma_0`, `axis_data_fifo_0`, `TKEEP`, `TLAST`, and the HP0 memory range.
 - `VIVADO_OVERLAY_REPORT.md` reports DMA/FIFO/HP0 rows as `PASS`.
+- Current routed timing passes with WNS about 0.500 ns.
 
 ## Active PYNQ Files
 
@@ -69,7 +73,7 @@ Use these modes in the DMA flow:
 ## Remaining Review Points
 
 - Board-level DMA proof still needs to be run on PYNQ after copying the active files.
-- Clock note: `pynq/base_add.hwh` declares `FCLK_CLK0` as 50 MHz, while the current PYNQ scripts use `PL_CLK_HZ = 31_250_000` based on the measured board behavior. Review this before trusting printed sample-rate numbers.
+- Clock note: `pynq/base_add.hwh` now declares `FCLK_CLK0` as 125 MHz, and the current PYNQ scripts use `PL_CLK_HZ = 125_000_000`.
 - `adc_sample_fifo.v` is now a one-word AXI-Stream packer/skid stage. The deep buffer is the Vivado `axis_data_fifo_0` IP.
 - The current ADC clock ODDR usage is an output register for the divided clock. It is not the future fast `D1=1, D2=0` ODDR clock generator.
 - DMA interrupt is optional in this flow. Current validation can use PYNQ `wait()`/polling.

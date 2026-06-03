@@ -142,20 +142,27 @@ $dmaSDataWidth = ""
 if ($hwhText -match 'NAME="c_s_axis_s2mm_tdata_width"\s+VALUE="([^"]+)"') {
     $dmaSDataWidth = $Matches[1]
 }
+$axisFifoDepth = ""
+if ($hwhText -match 'NAME="FIFO_DEPTH"\s+VALUE="([^"]+)"') {
+    $axisFifoDepth = $Matches[1]
+} elseif ($hwhText -match 'NAME="C_FIFO_DEPTH"\s+VALUE="([^"]+)"') {
+    $axisFifoDepth = $Matches[1]
+}
 $dmaMaxTransferBytes = 0
 if ($dmaLengthWidth -match '^\d+$') {
     $dmaMaxTransferBytes = [int64]([math]::Pow(2, [int]$dmaLengthWidth) - 1)
 }
 $dmaModeStatus = if (($dmaSg -eq "0") -and ($dmaMm2s -eq "0") -and ($dmaS2mm -eq "1")) { "PASS" } elseif ($dmaSg -or $dmaMm2s -or $dmaS2mm) { "FAIL" } elseif (Test-Path $HwhFile) { "CHECK" } else { "MISSING" }
-$dmaDataWidthStatus = if (($dmaMDataWidth -in @("32", "64")) -and ($dmaSDataWidth -eq "32")) { "PASS" } elseif ($dmaMDataWidth -or $dmaSDataWidth) { "FAIL" } elseif (Test-Path $HwhFile) { "CHECK" } else { "MISSING" }
+$dmaDataWidthStatus = if (($dmaMDataWidth -eq "64") -and ($dmaSDataWidth -eq "32")) { "PASS" } elseif ($dmaMDataWidth -or $dmaSDataWidth) { "FAIL" } elseif (Test-Path $HwhFile) { "CHECK" } else { "MISSING" }
+$axisFifoDepthStatus = if ($axisFifoDepth -eq "16384") { "PASS" } elseif ($axisFifoDepth) { "FAIL" } elseif (Test-Path $HwhFile) { "CHECK" } else { "MISSING" }
 $dmaLengthWidthStatus = if ($dmaLengthWidth -eq "23") { "PASS" } elseif ($dmaLengthWidth) { "FAIL" } elseif (Test-Path $HwhFile) { "CHECK" } else { "MISSING" }
 $dmaMaxTransferStatus = if ($dmaMaxTransferBytes -ge 262144) { "PASS" } elseif ($dmaMaxTransferBytes -gt 0) { "FAIL" } elseif (Test-Path $HwhFile) { "CHECK" } else { "MISSING" }
 $fclk0Hz = ""
 if ($hwhText -match 'PCW_CLK0_FREQ"\s+VALUE="([^"]+)"') {
     $fclk0Hz = $Matches[1]
 }
-$fclkStatus = if ($fclk0Hz) { "FOUND" } elseif (Test-Path $HwhFile) { "CHECK" } else { "MISSING" }
-$fclkNote = if ($fclk0Hz) { "HWH declares FCLK_CLK0 as $fclk0Hz Hz. PYNQ scripts may use measured PL_CLK_HZ; verify before interpreting sample-rate prints." } else { "Could not read FCLK_CLK0 frequency from hwh." }
+$fclkStatus = if ($fclk0Hz -eq "125000000") { "PASS" } elseif ($fclk0Hz) { "FAIL" } elseif (Test-Path $HwhFile) { "CHECK" } else { "MISSING" }
+$fclkNote = if ($fclk0Hz) { "HWH declares FCLK_CLK0 as $fclk0Hz Hz; target is 125000000 Hz and Python PL_CLK_HZ must match." } else { "Could not read FCLK_CLK0 frequency from hwh." }
 
 $wns = ""
 $tns = ""
@@ -203,7 +210,8 @@ Generated: **$now**
 | DMA S_AXI_LITE to PS GP0 | $(Status-Badge $dmaLiteGpStatus) | PS can configure DMA registers through M_AXI_GP0 |
 | DMA S2MM interrupt | $(Status-Badge $dmaIrqStatus) | Optional; current PYNQ flow can use polling/wait |
 | AXI DMA mode | $(Status-Badge $dmaModeStatus) | SG=$dmaSg, MM2S=$dmaMm2s, S2MM=$dmaS2mm |
-| AXI DMA data widths | $(Status-Badge $dmaDataWidthStatus) | M_AXI_S2MM=$dmaMDataWidth bits, S_AXIS_S2MM=$dmaSDataWidth bits |
+| AXIS Data FIFO depth | $(Status-Badge $axisFifoDepthStatus) | FIFO_DEPTH=$axisFifoDepth words; target value is 16384 |
+| AXI DMA data widths | $(Status-Badge $dmaDataWidthStatus) | M_AXI_S2MM=$dmaMDataWidth bits, S_AXIS_S2MM=$dmaSDataWidth bits; target is 64/32 |
 | AXI DMA Buffer Length Register Width | $(Status-Badge $dmaLengthWidthStatus) | c_sg_length_width = $dmaLengthWidth; required value is 23 |
 | Max DMA transfer bytes | $(Status-Badge $dmaMaxTransferStatus) | Max BTT = $dmaMaxTransferBytes bytes; 65536 samples need 262144 bytes |
 | FCLK_CLK0 in HWH | $(Status-Badge $fclkStatus) | $fclkNote |
@@ -299,5 +307,8 @@ Write-Host "DMA IP      : $dmaStatus"
 Write-Host "AXIS FIFO   : $axisFifoStatus"
 Write-Host "DMA path    : capture=$axisToFifoStatus fifo=$fifoToDmaStatus hp0=$dmaHpStatus"
 Write-Host "DMA BD      : dma=$dmaBdStatus fifo=$axisFifoBdStatus lite=$dmaLiteGpStatus irq=$dmaIrqStatus"
+Write-Host "FCLK_CLK0   : $fclk0Hz Hz ($fclkStatus)"
+Write-Host "FIFO depth  : $axisFifoDepth words ($axisFifoDepthStatus)"
+Write-Host "DMA widths  : M_AXI=$dmaMDataWidth S_AXIS=$dmaSDataWidth ($dmaDataWidthStatus)"
 Write-Host "Next step   : upload listed pynq files to PYNQ, then run a script or notebook"
 Write-Host "===========================================" -ForegroundColor Cyan
