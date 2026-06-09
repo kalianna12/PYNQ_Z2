@@ -1,0 +1,17 @@
+[Unit]
+Description=PYNQ AFSK SMS receiver service
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/xilinx/afsk_sms
+Environment=AFSK_UART_DEV=/dev/ttyUSB0
+Environment=AFSK_UART_BAUD=115200
+Environment=AFSK_CHANNEL=ch0
+ExecStart=/usr/bin/python3 /home/xilinx/afsk_sms/afsk_sms_receiver_service.py
+Restart=always
+RestartSec=2
+User=root
+
+[Install]
+WantedBy=multi-user.target
