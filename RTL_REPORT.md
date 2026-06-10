@@ -1,6 +1,6 @@
 ﻿# RTL Report
 
-Generated: **2026-06-03 05:28:33**
+Generated: **2026-06-09 15:33:03**
 
 ## 1. RTL Simulation Status
 
@@ -23,7 +23,7 @@ FINAL: PASS highspeed adc_half=1 fake and real AXIS stream
 
 | File | Status | Last Write Time |
 |---|---|---|
-| ad9226_capture_core.v | <span style="color:#008000;font-weight:bold;">FOUND</span> | 2026-05-25 01:33:29 |
+| ad9226_capture_core.v | <span style="color:#008000;font-weight:bold;">FOUND</span> | 2026-06-09 15:18:11 |
 | adc_capture_system.v | <span style="color:#008000;font-weight:bold;">FOUND</span> | 2026-05-25 01:33:36 |
 | adc_ctrl_axi.v | <span style="color:#008000;font-weight:bold;">FOUND</span> | 2026-05-25 01:29:11 |
 | adc_sample_fifo.v | <span style="color:#008000;font-weight:bold;">FOUND</span> | 2026-05-25 01:28:30 |

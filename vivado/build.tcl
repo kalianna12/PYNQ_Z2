@@ -128,7 +128,7 @@ set_property -dict [list \
     CONFIG.c_include_sg {0} \
     CONFIG.c_include_mm2s {0} \
     CONFIG.c_include_s2mm {1} \
-    CONFIG.c_sg_length_width {23} \
+    CONFIG.c_sg_length_width {21} \
     CONFIG.c_m_axi_s2mm_data_width {64} \
     CONFIG.c_s2mm_burst_size {16} \
 ] [get_bd_cells axi_dma_0]
@@ -235,6 +235,11 @@ add_files -norecurse $wrapper_file
 update_compile_order -fileset sources_1
 set_property top ${design_name}_wrapper [current_fileset]
 update_compile_order -fileset sources_1
+
+set_property STEPS.PHYS_OPT_DESIGN.IS_ENABLED true [get_runs impl_1]
+set_property STEPS.PHYS_OPT_DESIGN.ARGS.DIRECTIVE AggressiveExplore [get_runs impl_1]
+set_property STEPS.PLACE_DESIGN.ARGS.DIRECTIVE Explore [get_runs impl_1]
+set_property STEPS.ROUTE_DESIGN.ARGS.DIRECTIVE Explore [get_runs impl_1]
 
 launch_runs synth_1 -jobs 4
 wait_on_run synth_1

@@ -77,6 +77,7 @@ module ad9226_capture_core #(
     reg [31:0] pre_delay_run;
     reg buffer_select_run;
 
+    reg [15:0] adc_half_period_active;
     reg [15:0] half_count;
     reg adc_clk_div_r;
     reg adc_rise_pulse;
@@ -88,7 +89,6 @@ module ad9226_capture_core #(
     reg [31:0] pre_delay_count;
 
     wire [15:0] cfg_half_safe = (adc_half_period_cfg == 16'd0) ? 16'd1 : adc_half_period_cfg;
-    wire [15:0] active_half_period = busy ? adc_half_period_run : cfg_half_safe;
 
     wire [31:0] sample_count_clamped =
         (sample_count_cfg < 32'd1) ? 32'd1 :
@@ -180,6 +180,7 @@ module ad9226_capture_core #(
     always @(posedge clk_125m) begin
         if (!resetn || soft_reset) begin
             half_count <= 16'd0;
+            adc_half_period_active <= 16'd6;
             adc_clk_div_r <= 1'b0;
             adc_clk_seen <= 1'b0;
             adc_rise_pulse <= 1'b0;
@@ -189,7 +190,11 @@ module ad9226_capture_core #(
             if (!enable || clear_pulse) begin
                 half_count <= 16'd0;
                 adc_clk_div_r <= 1'b0;
-            end else if (half_count >= active_half_period - 1'b1) begin
+            end else if (start_pulse && !busy) begin
+                half_count <= 16'd0;
+                adc_half_period_active <= adc_half_period_clamped;
+                adc_clk_div_r <= 1'b0;
+            end else if (half_count >= adc_half_period_active - 1'b1) begin
                 half_count <= 16'd0;
                 adc_clk_div_r <= ~adc_clk_div_r;
                 adc_clk_seen <= 1'b1;

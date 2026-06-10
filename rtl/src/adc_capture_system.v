@@ -245,7 +245,7 @@ module adc_capture_system #(
     );
 
     ad9226_capture_core #(
-        .MAX_SAMPLE_N(65536),
+        .MAX_SAMPLE_N(262144),
         .SAMPLE_DELAY_MAX(31)
     ) capture_i (
         .clk_125m(S_AXI_ACLK),

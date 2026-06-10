@@ -1,6 +1,6 @@
 ﻿# Vivado Overlay Report
 
-Generated: **2026-06-03 05:30:07**
+Generated: **2026-06-10 19:09:31**
 
 ## 1. Build Status
 
@@ -23,8 +23,8 @@ Generated: **2026-06-03 05:30:07**
 | AXI DMA mode | <span style="color:#008000;font-weight:bold;font-size:16px;">PASS</span> | SG=0, MM2S=0, S2MM=1 |
 | AXIS Data FIFO depth | <span style="color:#008000;font-weight:bold;font-size:16px;">PASS</span> | FIFO_DEPTH=16384 words; target value is 16384 |
 | AXI DMA data widths | <span style="color:#008000;font-weight:bold;font-size:16px;">PASS</span> | M_AXI_S2MM=64 bits, S_AXIS_S2MM=32 bits; target is 64/32 |
-| AXI DMA Buffer Length Register Width | <span style="color:#008000;font-weight:bold;font-size:16px;">PASS</span> | c_sg_length_width = 23; required value is 23 |
-| Max DMA transfer bytes | <span style="color:#008000;font-weight:bold;font-size:16px;">PASS</span> | Max BTT = 8388607 bytes; 65536 samples need 262144 bytes |
+| AXI DMA Buffer Length Register Width | <span style="color:#008000;font-weight:bold;font-size:16px;">PASS</span> | c_sg_length_width = 21; must cover 262144 uint32 samples |
+| Max DMA transfer bytes | <span style="color:#008000;font-weight:bold;font-size:16px;">PASS</span> | Max BTT = 2097151 bytes; 262144 samples need 1048576 bytes |
 | FCLK_CLK0 in HWH | <span style="color:#008000;font-weight:bold;font-size:16px;">PASS</span> | HWH declares FCLK_CLK0 as 125000000 Hz; target is 125000000 Hz and Python PL_CLK_HZ must match. |
 | Routed timing | <span style="color:#008000;font-weight:bold;font-size:16px;">PASS</span> | Final implemented timing result |
 
@@ -34,8 +34,8 @@ These are the files to copy when validating the current DMA capture path.
 
 | File | Status | Bytes | Last Write Time |
 |---|---|---:|---|
-| base_add.bit | <span style="color:#008000;font-weight:bold;">FOUND</span> | 4045674 | 2026-06-03 05:25:34 |
-| base_add.hwh | <span style="color:#008000;font-weight:bold;">FOUND</span> | 326221 | 2026-06-03 05:19:52 |
+| base_add.bit | <span style="color:#008000;font-weight:bold;">FOUND</span> | 4045674 | 2026-06-10 19:07:38 |
+| base_add.hwh | <span style="color:#008000;font-weight:bold;">FOUND</span> | 326221 | 2026-06-10 18:50:09 |
 | ad9226_capture_smoke.py | <span style="color:#008000;font-weight:bold;">FOUND</span> | 7797 | 2026-06-03 05:29:58 |
 | ad9226_capture_demo.ipynb | <span style="color:#008000;font-weight:bold;">FOUND</span> | 6840 | 2026-06-03 05:15:07 |
 
@@ -43,10 +43,13 @@ These are the files to copy when validating the current DMA capture path.
 
 | File | Status | Bytes | Last Write Time |
 |---|---|---:|---|
-| base_add.bit | <span style="color:#008000;font-weight:bold;">FOUND</span> | 4045674 | 2026-06-03 05:25:34 |
-| base_add.hwh | <span style="color:#008000;font-weight:bold;">FOUND</span> | 326221 | 2026-06-03 05:19:52 |
+| base_add.bit | <span style="color:#008000;font-weight:bold;">FOUND</span> | 4045674 | 2026-06-10 19:07:38 |
+| base_add.hwh | <span style="color:#008000;font-weight:bold;">FOUND</span> | 326221 | 2026-06-10 18:50:09 |
 | ad9226_capture_demo.ipynb | <span style="color:#008000;font-weight:bold;">FOUND</span> | 6840 | 2026-06-03 05:15:07 |
+| afsk_sms_receiver.ipynb | <span style="color:#008000;font-weight:bold;">FOUND</span> | 15130 | 2026-06-08 22:52:06 |
 | ad9226_capture_smoke.py | <span style="color:#008000;font-weight:bold;">FOUND</span> | 7797 | 2026-06-03 05:29:58 |
+| afsk_sms_decode.py | <span style="color:#008000;font-weight:bold;">FOUND</span> | 5035 | 2026-06-08 20:48:45 |
+| afsk_sms_receiver_service.py | <span style="color:#008000;font-weight:bold;">FOUND</span> | 14007 | 2026-06-08 23:26:35 |
 
 Legacy notebooks may still exist in this folder for reference. Do not use them for DMA validation if they access overlay.base_add_0.
 
@@ -60,7 +63,7 @@ G:\VSCODE_Save_Files\PYNQ_Z2Code\PYNQZ2_PSPL_Base\build\vivado\base_add_overlay.
 
 | WNS ns | TNS ns | WHS ns | THS ns | Result |
 |---:|---:|---:|---:|---|
-| **0.500** | **0.000** | **0.013** | **0.000** | <span style="color:#008000;font-weight:bold;font-size:16px;">PASS</span> |
+| **0.750** | **0.000** | **0.035** | **0.000** | <span style="color:#008000;font-weight:bold;font-size:16px;">PASS</span> |
 
 Good sign:
 
@@ -81,7 +84,7 @@ G:\VSCODE_Save_Files\PYNQ_Z2Code\PYNQZ2_PSPL_Base\build\vivado\base_add_overlay.
 Key lines:
 
 ~~~text
-| Slice LUTs                 | 2571 |     0 |     53200 |  4.83 |
+| Slice LUTs                 | 2556 |     0 |     53200 |  4.80 |
 | Block RAM Tile    |   18 |     0 |       140 | 12.86 |
 * Note: Each Block RAM Tile only has one FIFO logic available and therefore can accommodate only one FIFO36E1 or one FIFO18E1. However, if a FIFO18E1 occupies a Block RAM Tile, that tile can still accommodate a RAMB18E1
 | DSPs      |    0 |     0 |       220 |  0.00 |

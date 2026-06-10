@@ -152,11 +152,13 @@ $dmaMaxTransferBytes = 0
 if ($dmaLengthWidth -match '^\d+$') {
     $dmaMaxTransferBytes = [int64]([math]::Pow(2, [int]$dmaLengthWidth) - 1)
 }
+$requiredSampleWords = 262144
+$requiredTransferBytes = $requiredSampleWords * 4
 $dmaModeStatus = if (($dmaSg -eq "0") -and ($dmaMm2s -eq "0") -and ($dmaS2mm -eq "1")) { "PASS" } elseif ($dmaSg -or $dmaMm2s -or $dmaS2mm) { "FAIL" } elseif (Test-Path $HwhFile) { "CHECK" } else { "MISSING" }
 $dmaDataWidthStatus = if (($dmaMDataWidth -eq "64") -and ($dmaSDataWidth -eq "32")) { "PASS" } elseif ($dmaMDataWidth -or $dmaSDataWidth) { "FAIL" } elseif (Test-Path $HwhFile) { "CHECK" } else { "MISSING" }
 $axisFifoDepthStatus = if ($axisFifoDepth -eq "16384") { "PASS" } elseif ($axisFifoDepth) { "FAIL" } elseif (Test-Path $HwhFile) { "CHECK" } else { "MISSING" }
-$dmaLengthWidthStatus = if ($dmaLengthWidth -eq "23") { "PASS" } elseif ($dmaLengthWidth) { "FAIL" } elseif (Test-Path $HwhFile) { "CHECK" } else { "MISSING" }
-$dmaMaxTransferStatus = if ($dmaMaxTransferBytes -ge 262144) { "PASS" } elseif ($dmaMaxTransferBytes -gt 0) { "FAIL" } elseif (Test-Path $HwhFile) { "CHECK" } else { "MISSING" }
+$dmaLengthWidthStatus = if ($dmaMaxTransferBytes -ge $requiredTransferBytes) { "PASS" } elseif ($dmaLengthWidth) { "FAIL" } elseif (Test-Path $HwhFile) { "CHECK" } else { "MISSING" }
+$dmaMaxTransferStatus = if ($dmaMaxTransferBytes -ge $requiredTransferBytes) { "PASS" } elseif ($dmaMaxTransferBytes -gt 0) { "FAIL" } elseif (Test-Path $HwhFile) { "CHECK" } else { "MISSING" }
 $fclk0Hz = ""
 if ($hwhText -match 'PCW_CLK0_FREQ"\s+VALUE="([^"]+)"') {
     $fclk0Hz = $Matches[1]
@@ -212,8 +214,8 @@ Generated: **$now**
 | AXI DMA mode | $(Status-Badge $dmaModeStatus) | SG=$dmaSg, MM2S=$dmaMm2s, S2MM=$dmaS2mm |
 | AXIS Data FIFO depth | $(Status-Badge $axisFifoDepthStatus) | FIFO_DEPTH=$axisFifoDepth words; target value is 16384 |
 | AXI DMA data widths | $(Status-Badge $dmaDataWidthStatus) | M_AXI_S2MM=$dmaMDataWidth bits, S_AXIS_S2MM=$dmaSDataWidth bits; target is 64/32 |
-| AXI DMA Buffer Length Register Width | $(Status-Badge $dmaLengthWidthStatus) | c_sg_length_width = $dmaLengthWidth; required value is 23 |
-| Max DMA transfer bytes | $(Status-Badge $dmaMaxTransferStatus) | Max BTT = $dmaMaxTransferBytes bytes; 65536 samples need 262144 bytes |
+| AXI DMA Buffer Length Register Width | $(Status-Badge $dmaLengthWidthStatus) | c_sg_length_width = $dmaLengthWidth; must cover $requiredSampleWords uint32 samples |
+| Max DMA transfer bytes | $(Status-Badge $dmaMaxTransferStatus) | Max BTT = $dmaMaxTransferBytes bytes; $requiredSampleWords samples need $requiredTransferBytes bytes |
 | FCLK_CLK0 in HWH | $(Status-Badge $fclkStatus) | $fclkNote |
 | Routed timing | $(Status-Badge $timingStatus) | Final implemented timing result |
 
