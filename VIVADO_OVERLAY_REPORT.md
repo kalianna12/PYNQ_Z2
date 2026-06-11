@@ -1,6 +1,6 @@
 ﻿# Vivado Overlay Report
 
-Generated: **2026-06-10 19:09:31**
+Generated: **2026-06-10 22:28:40**
 
 ## 1. Build Status
 
@@ -34,8 +34,8 @@ These are the files to copy when validating the current DMA capture path.
 
 | File | Status | Bytes | Last Write Time |
 |---|---|---:|---|
-| base_add.bit | <span style="color:#008000;font-weight:bold;">FOUND</span> | 4045674 | 2026-06-10 19:07:38 |
-| base_add.hwh | <span style="color:#008000;font-weight:bold;">FOUND</span> | 326221 | 2026-06-10 18:50:09 |
+| base_add.bit | <span style="color:#008000;font-weight:bold;">FOUND</span> | 4045674 | 2026-06-10 22:28:34 |
+| base_add.hwh | <span style="color:#008000;font-weight:bold;">FOUND</span> | 326221 | 2026-06-10 22:20:02 |
 | ad9226_capture_smoke.py | <span style="color:#008000;font-weight:bold;">FOUND</span> | 7797 | 2026-06-03 05:29:58 |
 | ad9226_capture_demo.ipynb | <span style="color:#008000;font-weight:bold;">FOUND</span> | 6840 | 2026-06-03 05:15:07 |
 
@@ -43,10 +43,11 @@ These are the files to copy when validating the current DMA capture path.
 
 | File | Status | Bytes | Last Write Time |
 |---|---|---:|---|
-| base_add.bit | <span style="color:#008000;font-weight:bold;">FOUND</span> | 4045674 | 2026-06-10 19:07:38 |
-| base_add.hwh | <span style="color:#008000;font-weight:bold;">FOUND</span> | 326221 | 2026-06-10 18:50:09 |
+| base_add.bit | <span style="color:#008000;font-weight:bold;">FOUND</span> | 4045674 | 2026-06-10 22:28:34 |
+| base_add.hwh | <span style="color:#008000;font-weight:bold;">FOUND</span> | 326221 | 2026-06-10 22:20:02 |
 | ad9226_capture_demo.ipynb | <span style="color:#008000;font-weight:bold;">FOUND</span> | 6840 | 2026-06-03 05:15:07 |
 | afsk_sms_receiver.ipynb | <span style="color:#008000;font-weight:bold;">FOUND</span> | 15130 | 2026-06-08 22:52:06 |
+| afsk_sms_receiver_131k.ipynb | <span style="color:#008000;font-weight:bold;">FOUND</span> | 19366 | 2026-06-10 21:48:33 |
 | ad9226_capture_smoke.py | <span style="color:#008000;font-weight:bold;">FOUND</span> | 7797 | 2026-06-03 05:29:58 |
 | afsk_sms_decode.py | <span style="color:#008000;font-weight:bold;">FOUND</span> | 5035 | 2026-06-08 20:48:45 |
 | afsk_sms_receiver_service.py | <span style="color:#008000;font-weight:bold;">FOUND</span> | 14007 | 2026-06-08 23:26:35 |
@@ -63,7 +64,7 @@ G:\VSCODE_Save_Files\PYNQ_Z2Code\PYNQZ2_PSPL_Base\build\vivado\base_add_overlay.
 
 | WNS ns | TNS ns | WHS ns | THS ns | Result |
 |---:|---:|---:|---:|---|
-| **0.750** | **0.000** | **0.035** | **0.000** | <span style="color:#008000;font-weight:bold;font-size:16px;">PASS</span> |
+| **0.805** | **0.000** | **0.033** | **0.000** | <span style="color:#008000;font-weight:bold;font-size:16px;">PASS</span> |
 
 Good sign:
 
@@ -84,7 +85,7 @@ G:\VSCODE_Save_Files\PYNQ_Z2Code\PYNQZ2_PSPL_Base\build\vivado\base_add_overlay.
 Key lines:
 
 ~~~text
-| Slice LUTs                 | 2556 |     0 |     53200 |  4.80 |
+| Slice LUTs                 | 2558 |     0 |     53200 |  4.81 |
 | Block RAM Tile    |   18 |     0 |       140 | 12.86 |
 * Note: Each Block RAM Tile only has one FIFO logic available and therefore can accommodate only one FIFO36E1 or one FIFO18E1. However, if a FIFO18E1 occupies a Block RAM Tile, that tile can still accommodate a RAMB18E1
 | DSPs      |    0 |     0 |       220 |  0.00 |

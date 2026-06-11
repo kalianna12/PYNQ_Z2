@@ -156,7 +156,7 @@ module adc_capture_system #(
     assign M_AXIS_SAMPLE_TKEEP = sample_word_tkeep;
     assign axis_target_count =
         (sample_count_cfg < 32'd1) ? 32'd1 :
-        (sample_count_cfg > 32'd65536) ? 32'd65536 :
+        (sample_count_cfg > 32'd262144) ? 32'd262144 :
         sample_count_cfg;
     assign fatal_error = fifo_overflow || (dropped_sample_count != 32'd0) || config_error;
     assign error_flags_in = {
