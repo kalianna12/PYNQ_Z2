@@ -127,40 +127,64 @@ LD5_G / rgb[4] -> G17
 LD5_R / rgb[5] -> L15
 ```
 
-The verified RGB color code for each 3-bit RGB LED is:
+The final verified physical RGB mapping is board-specific. Do not treat RGB as
+a single fixed color number shared by both LEDs.
+
+Register field `ld4_color` controls the physical board LED `LD5`, with bit
+order `R B G`.
+
+Register field `ld5_color` controls the physical board LED `LD4`, with bit
+order `R G B`.
+
+Physical `LD4`, bit order `R G B`:
+
+```text
+OFF     = 0b000
+RED     = 0b001
+GREEN   = 0b010
+BLUE    = 0b100
+YELLOW  = 0b011
+MAGENTA = 0b101
+CYAN    = 0b110
+WHITE   = 0b111
+```
+
+Physical `LD5`, bit order `R B G`:
+
+```text
+OFF     = 0b000
+RED     = 0b001
+GREEN   = 0b100
+BLUE    = 0b010
+YELLOW  = 0b101
+MAGENTA = 0b011
+CYAN    = 0b110
+WHITE   = 0b111
+```
+
+Notebook code must expose a physical-board helper:
 
 ```python
-COLOR_NAME = {
-    0: "OFF",
-    1: "BLUE",
-    2: "GREEN",
-    3: "CYAN",
-    4: "RED",
-    5: "MAGENTA",
-    6: "YELLOW",
-    7: "WHITE",
-}
+def set_rgb(led_mask=0, ld4="OFF", ld5="OFF"):
+    return set_board_io(
+        led_mask=led_mask,
+        ld4_color=encode_physical_ld5(ld5),
+        ld5_color=encode_physical_ld4(ld4),
+    )
 ```
 
-In plain words:
+This example is verified correct:
 
-```text
-0 -> off
-1 -> blue
-2 -> green
-3 -> cyan
-4 -> red
-5 -> magenta
-6 -> yellow
-7 -> white
+```python
+set_rgb(led_mask=0b1111, ld4="BLUE", ld5="GREEN")
 ```
 
-This means the per-RGB-LED bit order used by PS software should be:
+Expected physical result:
 
 ```text
-bit[0] = blue
-bit[1] = green
-bit[2] = red
+LD4 = blue
+LD5 = green
+LED0..LED3 = on
 ```
 
 Official PYNQ-Z1 DIP switches:
@@ -182,6 +206,46 @@ kept here for later board checks.
 If later testing finds LED/RGB polarity is inverted, fix the PS-side test code
 or add an inversion option in the LED GPIO register layer. Do not move pins
 unless the schematic or board test proves the pin assignment is wrong.
+
+Manual board test results for the current overlay:
+
+```text
+led_mask bit0 -> physical LD3
+led_mask bit1 -> physical LD1
+led_mask bit2 -> physical LD2
+led_mask bit3 -> physical LD0
+```
+
+Use this physical helper mapping in notebooks:
+
+```python
+LED_PHYS_TO_MASK = {
+    0: 0b1000,
+    1: 0b0010,
+    2: 0b0100,
+    3: 0b0001,
+}
+```
+
+Manual button test results:
+
+```text
+physical BTN0 -> raw bit2 -> 0b0100
+physical BTN1 -> raw bit1 -> 0b0010
+physical BTN2 -> raw bit0 -> 0b0001
+physical BTN3 -> raw bit3 -> 0b1000
+```
+
+Use this physical helper mapping in notebooks:
+
+```python
+BTN_PHYS_TO_MASK = {
+    0: 0b0100,
+    1: 0b0010,
+    2: 0b0001,
+    3: 0b1000,
+}
+```
 
 ## Expansion Header Availability
 
