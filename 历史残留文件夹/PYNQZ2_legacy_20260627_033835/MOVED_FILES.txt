@@ -1,0 +1,27 @@
+﻿Moved PYNQ-Z2 / legacy files from G:\VSCODE_Save_Files\PYNQ_Z2Code\PYNQZ2_PSPL_Base
+Timestamp: 20260627_033835
+
+Files/folders:
+- constraints\pynq_adc_system.xdc
+- constraints\pynqz2_leds.xdc
+- docs\FLOW.md
+- docs\CLOCK_FCLK_125M_UPGRADE_PLAN.md
+- docs\AD9226_AXI_DMA_CAPTURE_PLAN.md
+- docs\AD9226_CAPTURE_PLAN.md
+- docs\PROJECT_STATUS.md
+- PORTING_GUIDE.md
+- README.md
+- HLS_REPORT.md
+- RTL_REPORT.md
+- pynq\ad9226_capture_demo.ipynb
+- pynq\ad9226_capture_smoke.py
+- hls
+- xsim.dir
+- compile.log
+- xvlog.log
+- xvlog.pb
+- vivado_hls.log
+
+Additional cleanup:
+- scripts\Build-HlsWithReport.ps1
+- scripts\Generate-HlsReport.ps1

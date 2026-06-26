@@ -2,24 +2,7 @@
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "FPGA: 1 Build HLS IP",
-      "type": "shell",
-      "command": "powershell",
-      "args": [
-        "-NoProfile",
-        "-ExecutionPolicy",
-        "Bypass",
-        "-File",
-        "${workspaceFolder}\\scripts\\Build-HlsWithReport.ps1"
-      ],
-      "options": {
-        "cwd": "${workspaceFolder}"
-      },
-      "group": "build",
-      "problemMatcher": []
-    },
-    {
-      "label": "FPGA: 2 Build Vivado Overlay",
+      "label": "FPGA: Build Vivado Overlay",
       "type": "shell",
       "command": "powershell",
       "args": [
@@ -41,22 +24,6 @@
       "command": "G:\\VIVADO2022\\Vivado\\2022.1\\bin\\vivado.bat",
       "args": [
         "${workspaceFolder}\\build\\vivado\\base_add_overlay.xpr"
-      ],
-      "options": {
-        "cwd": "${workspaceFolder}"
-      },
-      "problemMatcher": []
-    },
-    {
-      "label": "FPGA: Generate HLS Report Only",
-      "type": "shell",
-      "command": "powershell",
-      "args": [
-        "-NoProfile",
-        "-ExecutionPolicy",
-        "Bypass",
-        "-File",
-        "${workspaceFolder}\\scripts\\Generate-HlsReport.ps1"
       ],
       "options": {
         "cwd": "${workspaceFolder}"

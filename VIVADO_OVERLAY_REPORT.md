@@ -1,6 +1,6 @@
 ﻿# Vivado Overlay Report
 
-Generated: **2026-06-27 00:34:44**
+Generated: **2026-06-27 03:56:51**
 
 ## 1. Build Status
 
@@ -31,34 +31,146 @@ Generated: **2026-06-27 00:34:44**
 | FCLK_CLK0 in HWH | <span style="color:#008000;font-weight:bold;font-size:16px;">PASS</span> | HWH declares FCLK_CLK0 as 125000000 Hz; target is 125000000 Hz and Python PL_CLK_HZ must match. |
 | Routed timing | <span style="color:#008000;font-weight:bold;font-size:16px;">PASS</span> | Final implemented timing result |
 
-## 2. Recommended DMA Files For PYNQ
+## 2. PS Address Map For PYNQ
+
+These addresses come from pynq/base_add.hwh. Notebook code should use these
+fixed MMIO addresses directly instead of guessing through overlay attributes.
+
+| Instance | Base | High | Range | Slave Interface | PYNQ Access |
+|---|---:|---:|---:|---|---|
+| led_ctrl_0 | 0x40000000 | 0x40000FFF | 0x1000 | S_AXI | MMIO(0x40000000, 0x1000) |
+| adc_capture_0 | 0x40001000 | 0x40001FFF | 0x1000 | S_AXI | MMIO(0x40001000, 0x1000) |
+| axi_dma_0 | 0x40400000 | 0x4040FFFF | 0x10000 | S_AXI_LITE | overlay.axi_dma_0 / DMA MMIO 0x40400000 |
+
+Recommended direct bindings:
+
+~~~text
+led_ip = MMIO(0x40000000, 0x1000)
+adc_ip = MMIO(0x40001000, 0x1000)
+dma = overlay.axi_dma_0
+~~~
+
+## 3. Register Offsets Used By Notebook
+
+LED/RGB/button controller at `0x40000000`:
+
+| Register | Offset | Meaning |
+|---|---:|---|
+| LED_CTRL | 0x00 | write 0x00 for manual board IO mode |
+| LED_VALUE | 0x08 | bits[3:0]=LD0..LD3, bits[6:4]=LD5 RGB, bits[9:7]=LD4 RGB |
+| LED_STATUS | 0x0C | bits[3:0]=LED value, bits[9:4]=RGB value, bits[13:10]=BTN0..BTN3 |
+
+ADC capture controller at `0x40001000`:
+
+| Register | Offset | Meaning |
+|---|---:|---|
+| CTRL | 0x00 | bit0 enable, bit1 start pulse, bit2 clear/reset pulse |
+| STATUS | 0x04 | busy/done/fatal status |
+| SAMPLE_COUNT | 0x08 | number of 32-bit sample words sent to DMA |
+| ADC_HALF | 0x0C | ADC clock half-period in 125 MHz FCLK cycles |
+| SAMPLE_DELAY | 0x10 | ADC data sample delay in FCLK cycles |
+| DECIMATION | 0x14 | save one sample per N ADC cycles |
+| CHANNEL_MASK | 0x18 | bit0 channel A, bit1 channel B |
+| CAPTURE_MODE | 0x1C | 1 real ADC, 2 fake stream |
+| TRIGGER_MODE | 0x20 | current generic tests use 0 |
+| PRE_DELAY | 0x24 | current generic tests use 0 |
+| BUFFER_SELECT | 0x28 | current generic tests use 0 |
+| LATEST_A | 0x2C | latest raw channel A sample |
+| LATEST_B | 0x30 | latest raw channel B sample |
+| SAMPLE_COUNTER | 0x34 | ADC sample counter |
+| FIFO_LEVEL | 0x38 | internal FIFO level |
+| ERROR_FLAGS | 0x3C | write all ones to clear warning/error flags |
+| VERSION | 0x44 | RTL version/debug value |
+| SAVED_COUNTER | 0x48 | saved sample counter |
+| LAST_AXIS_WORD | 0x4C | last packed AXIS word |
+| DEBUG_STATE | 0x50 | capture FSM debug state |
+| AXIS_SENT_COUNT | 0x54 | number of AXIS words sent |
+| AXIS_STALL_COUNT | 0x58 | AXIS stall counter |
+| TLAST_COUNT | 0x5C | expected 1 per capture |
+| FIFO_BACKPRESSURE | 0x60 | FIFO backpressure counter |
+| DROPPED_SAMPLE_COUNT | 0x64 | expected 0 |
+| CAPTURE_DONE_LATCHED | 0x68 | latched done flag |
+| CORE_DONE | 0x6C | capture core done flag |
+
+AXI DMA at `0x40400000`:
+
+| Register | Offset | Meaning |
+|---|---:|---|
+| S2MM_DMASR | 0x34 | DMA S2MM status register used by debug code |
+
+## 4. Exposed PL Pin Map
+
+These rows come from the active Lemon/PYNQ-Z1 XDC files. They are the board pins
+the bitstream exposes.
+
+| HDL Top Port | Board Meaning | PACKAGE_PIN | XDC File |
+|---|---|---|---|
+| leds_4bits_tri_o[0] | LD0 | R14 | lemon_pynqz1_board_io.xdc |
+| leds_4bits_tri_o[1] | LD1 | P14 | lemon_pynqz1_board_io.xdc |
+| leds_4bits_tri_o[2] | LD2 | N16 | lemon_pynqz1_board_io.xdc |
+| leds_4bits_tri_o[3] | LD3 | M14 | lemon_pynqz1_board_io.xdc |
+| rgb_leds_6bits_tri_o[0] | LD5_R | M15 | lemon_pynqz1_board_io.xdc |
+| rgb_leds_6bits_tri_o[1] | LD5_G | L14 | lemon_pynqz1_board_io.xdc |
+| rgb_leds_6bits_tri_o[2] | LD5_B | G14 | lemon_pynqz1_board_io.xdc |
+| rgb_leds_6bits_tri_o[3] | LD4_R | N15 | lemon_pynqz1_board_io.xdc |
+| rgb_leds_6bits_tri_o[4] | LD4_G | G17 | lemon_pynqz1_board_io.xdc |
+| rgb_leds_6bits_tri_o[5] | LD4_B | L15 | lemon_pynqz1_board_io.xdc |
+| btns_4bits_tri_i[0] | BTN0 | D19 | lemon_pynqz1_board_io.xdc |
+| btns_4bits_tri_i[1] | BTN1 | D20 | lemon_pynqz1_board_io.xdc |
+| btns_4bits_tri_i[2] | BTN2 | L20 | lemon_pynqz1_board_io.xdc |
+| btns_4bits_tri_i[3] | BTN3 | L19 | lemon_pynqz1_board_io.xdc |
+| adc_a_clk | AD9226 A clock | T9 | lemon_pynqz1_adc_system.xdc |
+| adc_a_data[0] | AD9226 A D0 | U10 | lemon_pynqz1_adc_system.xdc |
+| adc_a_data[1] | AD9226 A D1 | V6 | lemon_pynqz1_adc_system.xdc |
+| adc_a_data[2] | AD9226 A D2 | W6 | lemon_pynqz1_adc_system.xdc |
+| adc_a_data[3] | AD9226 A D3 | Y9 | lemon_pynqz1_adc_system.xdc |
+| adc_a_data[4] | AD9226 A D4 | Y8 | lemon_pynqz1_adc_system.xdc |
+| adc_a_data[5] | AD9226 A D5 | Y7 | lemon_pynqz1_adc_system.xdc |
+| adc_a_data[6] | AD9226 A D6 | Y6 | lemon_pynqz1_adc_system.xdc |
+| adc_a_data[7] | AD9226 A D7 | T5 | lemon_pynqz1_adc_system.xdc |
+| adc_a_data[8] | AD9226 A D8 | U5 | lemon_pynqz1_adc_system.xdc |
+| adc_a_data[9] | AD9226 A D9 | U7 | lemon_pynqz1_adc_system.xdc |
+| adc_a_data[10] | AD9226 A D10 | V7 | lemon_pynqz1_adc_system.xdc |
+| adc_a_data[11] | AD9226 A D11 | V8 | lemon_pynqz1_adc_system.xdc |
+| adc_a_ora | AD9226 A ORA | W8 | lemon_pynqz1_adc_system.xdc |
+| adc_b_clk | AD9226 B clock | V11 | lemon_pynqz1_adc_system.xdc |
+| adc_b_data[0] | AD9226 B D0 | V10 | lemon_pynqz1_adc_system.xdc |
+| adc_b_data[1] | AD9226 B D1 | Y12 | lemon_pynqz1_adc_system.xdc |
+| adc_b_data[2] | AD9226 B D2 | Y13 | lemon_pynqz1_adc_system.xdc |
+| adc_b_data[3] | AD9226 B D3 | W11 | lemon_pynqz1_adc_system.xdc |
+| adc_b_data[4] | AD9226 B D4 | Y11 | lemon_pynqz1_adc_system.xdc |
+| adc_b_data[5] | AD9226 B D5 | V5 | lemon_pynqz1_adc_system.xdc |
+| adc_b_data[6] | AD9226 B D6 | J15 | lemon_pynqz1_adc_system.xdc |
+| adc_b_data[7] | AD9226 B D7 | H15 | lemon_pynqz1_adc_system.xdc |
+| adc_b_data[8] | AD9226 B D8 | F16 | lemon_pynqz1_adc_system.xdc |
+| adc_b_data[9] | AD9226 B D9 | F19 | lemon_pynqz1_adc_system.xdc |
+| adc_b_data[10] | AD9226 B D10 | F20 | lemon_pynqz1_adc_system.xdc |
+| adc_b_data[11] | AD9226 B D11 | B19 | lemon_pynqz1_adc_system.xdc |
+| adc_b_orb | AD9226 B ORB | A20 | lemon_pynqz1_adc_system.xdc |
+
+## 5. Recommended DMA Files For PYNQ
 
 These are the files to copy when validating the current DMA capture path.
 
 | File | Status | Bytes | Last Write Time |
 |---|---|---:|---|
-| base_add.bit | <span style="color:#008000;font-weight:bold;">FOUND</span> | 4045674 | 2026-06-27 00:33:17 |
-| base_add.hwh | <span style="color:#008000;font-weight:bold;">FOUND</span> | 335664 | 2026-06-27 00:27:40 |
-| ad9226_capture_smoke.py | <span style="color:#008000;font-weight:bold;">FOUND</span> | 7797 | 2026-06-03 05:29:58 |
-| ad9226_capture_demo.ipynb | <span style="color:#008000;font-weight:bold;">FOUND</span> | 6840 | 2026-06-03 05:15:07 |
+| base_add.bit | <span style="color:#008000;font-weight:bold;">FOUND</span> | 4045674 | 2026-06-27 03:41:46 |
+| base_add.hwh | <span style="color:#008000;font-weight:bold;">FOUND</span> | 335664 | 2026-06-27 03:36:58 |
+| lemon_pynqz1_capture.py | <span style="color:#008000;font-weight:bold;">FOUND</span> | 6721 | 2026-06-27 03:41:42 |
+| lemon_pynqz1_board_adc_test.ipynb | <span style="color:#008000;font-weight:bold;">FOUND</span> | 14289 | 2026-06-27 03:52:34 |
 
-## 3. Board Files Present
+## 6. Board Files Present
 
 | File | Status | Bytes | Last Write Time |
 |---|---|---:|---|
-| base_add.bit | <span style="color:#008000;font-weight:bold;">FOUND</span> | 4045674 | 2026-06-27 00:33:17 |
-| base_add.hwh | <span style="color:#008000;font-weight:bold;">FOUND</span> | 335664 | 2026-06-27 00:27:40 |
-| ad9226_capture_demo.ipynb | <span style="color:#008000;font-weight:bold;">FOUND</span> | 6840 | 2026-06-03 05:15:07 |
-| afsk_sms_receiver.ipynb | <span style="color:#008000;font-weight:bold;">FOUND</span> | 15130 | 2026-06-08 22:52:06 |
-| afsk_sms_receiver_131k.ipynb | <span style="color:#008000;font-weight:bold;">FOUND</span> | 19366 | 2026-06-10 21:48:33 |
-| afsk_sms_uart_test.ipynb | <span style="color:#008000;font-weight:bold;">FOUND</span> | 21086 | 2026-06-12 17:26:25 |
-| ad9226_capture_smoke.py | <span style="color:#008000;font-weight:bold;">FOUND</span> | 7797 | 2026-06-03 05:29:58 |
-| afsk_sms_decode.py | <span style="color:#008000;font-weight:bold;">FOUND</span> | 5035 | 2026-06-08 20:48:45 |
-| afsk_sms_receiver_service.py | <span style="color:#008000;font-weight:bold;">FOUND</span> | 14007 | 2026-06-08 23:26:35 |
+| base_add.bit | <span style="color:#008000;font-weight:bold;">FOUND</span> | 4045674 | 2026-06-27 03:41:46 |
+| base_add.hwh | <span style="color:#008000;font-weight:bold;">FOUND</span> | 335664 | 2026-06-27 03:36:58 |
+| lemon_pynqz1_board_adc_test.ipynb | <span style="color:#008000;font-weight:bold;">FOUND</span> | 14289 | 2026-06-27 03:52:34 |
+| lemon_pynqz1_capture.py | <span style="color:#008000;font-weight:bold;">FOUND</span> | 6721 | 2026-06-27 03:41:42 |
 
-Legacy notebooks may still exist in this folder for reference. Do not use them for DMA validation if they access overlay.base_add_0.
+Legacy board notebooks have been moved to the history folder. Use the Lemon/PYNQ-Z1 notebook for board validation.
 
-## 4. Timing Summary
+## 7. Timing Summary
 
 Source file:
 
@@ -68,7 +180,7 @@ G:\VSCODE_Save_Files\PYNQ_Z2Code\PYNQZ2_PSPL_Base\build\vivado\base_add_overlay.
 
 | WNS ns | TNS ns | WHS ns | THS ns | Result |
 |---:|---:|---:|---:|---|
-| **0.790** | **0.000** | **0.051** | **0.000** | <span style="color:#008000;font-weight:bold;font-size:16px;">PASS</span> |
+| **0.847** | **0.000** | **0.015** | **0.000** | <span style="color:#008000;font-weight:bold;font-size:16px;">PASS</span> |
 
 Good sign:
 
@@ -78,7 +190,7 @@ All user specified timing constraints are met.
 
 Rule: **WNS > 0** means setup timing passes.
 
-## 5. Resource Report
+## 8. Resource Report
 
 Source file:
 
@@ -89,13 +201,13 @@ G:\VSCODE_Save_Files\PYNQ_Z2Code\PYNQZ2_PSPL_Base\build\vivado\base_add_overlay.
 Key lines:
 
 ~~~text
-| Slice LUTs                 | 2391 |     0 |          0 |     53200 |  4.49 |
+| Slice LUTs                 | 2390 |     0 |          0 |     53200 |  4.49 |
 | Block RAM Tile    |   20 |     0 |          0 |       140 | 14.29 |
 * Note: Each Block RAM Tile only has one FIFO logic available and therefore can accommodate only one FIFO36E1 or one FIFO18E1. However, if a FIFO18E1 occupies a Block RAM Tile, that tile can still accommodate a RAMB18E1
 | DSPs      |    0 |     0 |          0 |       220 |  0.00 |
 ~~~
 
-## 6. Vivado Project
+## 9. Vivado Project
 
 | File | Status |
 |---|---|
@@ -103,24 +215,23 @@ Key lines:
 
 Open this project only when you want to inspect the block design or timing in the GUI.
 
-## 7. Next Step
+## 10. Next Step
 
 If this report shows **PASS**, upload these files to PYNQ:
 
 ~~~text
 pynq/base_add.bit
 pynq/base_add.hwh
-pynq/ad9226_capture_smoke.py
-pynq/ad9226_capture_demo.ipynb
+pynq/lemon_pynqz1_capture.py
+pynq/lemon_pynqz1_board_adc_test.ipynb
 ~~~
 
-For the DMA capture path, use:
+For the Lemon/PYNQ-Z1 board validation path, use:
 
 ~~~text
-pynq/ad9226_capture_smoke.py
-pynq/ad9226_capture_demo.ipynb
+pynq/lemon_pynqz1_board_adc_test.ipynb
 ~~~
 
-Do not use old notebooks that access overlay.base_add_0 when validating DMA.
-Those belong to the previous HLS-writer path and can give a false PASS.
+Do not use old board notebooks when validating the Lemon/PYNQ-Z1 pinout.
+Those belong to the previous board flow and can give misleading LED/button/ADC results.
 

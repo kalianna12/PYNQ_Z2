@@ -1,6 +1,6 @@
 import numpy as np
 
-from ad9226_capture_smoke import open_default_overlay, run_dma_capture
+from lemon_pynqz1_capture import open_default_overlay, run_dma_capture
 
 
 PL_CLK_HZ = 125_000_000

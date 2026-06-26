@@ -12,7 +12,7 @@
 ##   -> U10 W6 Y8 Y6 U5 V7 W8 V10 Y13 Y11 J15 F16 F20 A20
 ##
 ## Do not assign VCC, 3V3, GND, VN, or VP in XDC.
-## Keep this file separate from the PYNQ-Z2 ADC XDC.
+## This is the only active ADC pin constraint file for the Lemon/PYNQ-Z1 flow.
 
 ## Channel A clock and data
 set_property PACKAGE_PIN T9 [get_ports adc_a_clk]

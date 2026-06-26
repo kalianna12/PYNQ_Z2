@@ -13,8 +13,8 @@ $BuildTcl = Join-Path $Root "vivado\build.tcl"
 $RecommendedPynqFiles = @(
     "base_add.bit",
     "base_add.hwh",
-    "ad9226_capture_smoke.py",
-    "ad9226_capture_demo.ipynb"
+    "lemon_pynqz1_capture.py",
+    "lemon_pynqz1_board_adc_test.ipynb"
 )
 
 function Read-AllTextSafe($Path) {
@@ -96,6 +96,72 @@ function Recommended-PynqRows($Dir) {
             "| $_ | $(Status-Badge 'MISSING') | - | - |"
         }
     }) -join "`n")
+}
+
+function Hwh-AddressRows($Text) {
+    $rows = @()
+    $pattern = '<MEMRANGE[^>]*BASEVALUE="([^"]+)"[^>]*HIGHVALUE="([^"]+)"[^>]*INSTANCE="([^"]+)"[^>]*MEMTYPE="([^"]+)"[^>]*SLAVEBUSINTERFACE="([^"]+)"'
+    $matches = [regex]::Matches($Text, $pattern)
+    foreach ($m in $matches) {
+        $instance = $m.Groups[3].Value
+        if ($instance -notin @("led_ctrl_0", "adc_capture_0", "axi_dma_0")) { continue }
+        $base = $m.Groups[1].Value
+        $high = $m.Groups[2].Value
+        $range = "-"
+        try {
+            $rangeValue = [Convert]::ToInt64($high, 16) - [Convert]::ToInt64($base, 16) + 1
+            $range = ("0x{0:X}" -f $rangeValue)
+        } catch {}
+        $access = switch ($instance) {
+            "led_ctrl_0" { "MMIO($base, $range)" }
+            "adc_capture_0" { "MMIO($base, $range)" }
+            "axi_dma_0" { "overlay.axi_dma_0 / DMA MMIO $base" }
+            default { "" }
+        }
+        $rows += "| $instance | $base | $high | $range | $($m.Groups[5].Value) | $access |"
+    }
+    if (!$rows) { return "| Address map not found in HWH | $(Status-Badge 'MISSING') | - | - | - | - |" }
+    return ($rows -join "`n")
+}
+
+function Xdc-PinRows($Paths) {
+    $rows = @()
+    foreach ($path in $Paths) {
+        if (!(Test-Path $path)) { continue }
+        $file = Split-Path -Leaf $path
+        $matches = Select-String -Path $path -Pattern 'set_property\s+PACKAGE_PIN\s+(\S+)\s+\[get_ports\s+(?:\{([^\}]+)\}|([^\]]+))\]'
+        foreach ($m in $matches) {
+            $pin = $m.Matches[0].Groups[1].Value
+            $port = $m.Matches[0].Groups[2].Value.Trim()
+            if (!$port) { $port = $m.Matches[0].Groups[3].Value.Trim() }
+            $meaning = switch -Regex ($port) {
+                '^leds_4bits_tri_o\[0\]$' { "LD0"; break }
+                '^leds_4bits_tri_o\[1\]$' { "LD1"; break }
+                '^leds_4bits_tri_o\[2\]$' { "LD2"; break }
+                '^leds_4bits_tri_o\[3\]$' { "LD3"; break }
+                '^rgb_leds_6bits_tri_o\[0\]$' { "LD5_R"; break }
+                '^rgb_leds_6bits_tri_o\[1\]$' { "LD5_G"; break }
+                '^rgb_leds_6bits_tri_o\[2\]$' { "LD5_B"; break }
+                '^rgb_leds_6bits_tri_o\[3\]$' { "LD4_R"; break }
+                '^rgb_leds_6bits_tri_o\[4\]$' { "LD4_G"; break }
+                '^rgb_leds_6bits_tri_o\[5\]$' { "LD4_B"; break }
+                '^btns_4bits_tri_i\[0\]$' { "BTN0"; break }
+                '^btns_4bits_tri_i\[1\]$' { "BTN1"; break }
+                '^btns_4bits_tri_i\[2\]$' { "BTN2"; break }
+                '^btns_4bits_tri_i\[3\]$' { "BTN3"; break }
+                '^adc_a_clk$' { "AD9226 A clock"; break }
+                '^adc_b_clk$' { "AD9226 B clock"; break }
+                '^adc_a_ora$' { "AD9226 A ORA"; break }
+                '^adc_b_orb$' { "AD9226 B ORB"; break }
+                '^adc_a_data\[(\d+)\]$' { "AD9226 A D$($Matches[1])"; break }
+                '^adc_b_data\[(\d+)\]$' { "AD9226 B D$($Matches[1])"; break }
+                default { "" }
+            }
+            $rows += "| $port | $meaning | $pin | $file |"
+        }
+    }
+    if (!$rows) { return "| Pin constraints not found | $(Status-Badge 'MISSING') | - | - |" }
+    return ($rows -join "`n")
 }
 
 $logText = Read-AllTextSafe $VivadoLog
@@ -190,6 +256,51 @@ if (Test-Path $UtilRpt) {
 $timingGoodLine = File-Line $TimingRpt "All user specified timing constraints are met"
 $uploadText = Pynq-UploadText $PynqDir
 $xprStatus = if (Test-Path $XprFile) { "FOUND" } else { "MISSING" }
+$addressRows = Hwh-AddressRows $hwhText
+$pinRows = Xdc-PinRows @(
+    (Join-Path $Root "constraints\lemon_pynqz1_board_io.xdc"),
+    (Join-Path $Root "constraints\lemon_pynqz1_adc_system.xdc")
+)
+
+$ledRegisterRows = @"
+| LED_CTRL | 0x00 | write 0x00 for manual board IO mode |
+| LED_VALUE | 0x08 | bits[3:0]=LD0..LD3, bits[6:4]=LD5 RGB, bits[9:7]=LD4 RGB |
+| LED_STATUS | 0x0C | bits[3:0]=LED value, bits[9:4]=RGB value, bits[13:10]=BTN0..BTN3 |
+"@
+
+$adcRegisterRows = @"
+| CTRL | 0x00 | bit0 enable, bit1 start pulse, bit2 clear/reset pulse |
+| STATUS | 0x04 | busy/done/fatal status |
+| SAMPLE_COUNT | 0x08 | number of 32-bit sample words sent to DMA |
+| ADC_HALF | 0x0C | ADC clock half-period in 125 MHz FCLK cycles |
+| SAMPLE_DELAY | 0x10 | ADC data sample delay in FCLK cycles |
+| DECIMATION | 0x14 | save one sample per N ADC cycles |
+| CHANNEL_MASK | 0x18 | bit0 channel A, bit1 channel B |
+| CAPTURE_MODE | 0x1C | 1 real ADC, 2 fake stream |
+| TRIGGER_MODE | 0x20 | current generic tests use 0 |
+| PRE_DELAY | 0x24 | current generic tests use 0 |
+| BUFFER_SELECT | 0x28 | current generic tests use 0 |
+| LATEST_A | 0x2C | latest raw channel A sample |
+| LATEST_B | 0x30 | latest raw channel B sample |
+| SAMPLE_COUNTER | 0x34 | ADC sample counter |
+| FIFO_LEVEL | 0x38 | internal FIFO level |
+| ERROR_FLAGS | 0x3C | write all ones to clear warning/error flags |
+| VERSION | 0x44 | RTL version/debug value |
+| SAVED_COUNTER | 0x48 | saved sample counter |
+| LAST_AXIS_WORD | 0x4C | last packed AXIS word |
+| DEBUG_STATE | 0x50 | capture FSM debug state |
+| AXIS_SENT_COUNT | 0x54 | number of AXIS words sent |
+| AXIS_STALL_COUNT | 0x58 | AXIS stall counter |
+| TLAST_COUNT | 0x5C | expected 1 per capture |
+| FIFO_BACKPRESSURE | 0x60 | FIFO backpressure counter |
+| DROPPED_SAMPLE_COUNT | 0x64 | expected 0 |
+| CAPTURE_DONE_LATCHED | 0x68 | latched done flag |
+| CORE_DONE | 0x6C | capture core done flag |
+"@
+
+$dmaRegisterRows = @"
+| S2MM_DMASR | 0x34 | DMA S2MM status register used by debug code |
+"@
 
 $now = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
 $content = @"
@@ -226,7 +337,49 @@ Generated: **$now**
 | FCLK_CLK0 in HWH | $(Status-Badge $fclkStatus) | $fclkNote |
 | Routed timing | $(Status-Badge $timingStatus) | Final implemented timing result |
 
-## 2. Recommended DMA Files For PYNQ
+## 2. PS Address Map For PYNQ
+
+These addresses come from `pynq/base_add.hwh`. Notebook code should use these
+fixed MMIO addresses directly instead of guessing through overlay attributes.
+
+| Instance | Base | High | Range | Slave Interface | PYNQ Access |
+|---|---:|---:|---:|---|---|
+$addressRows
+
+Recommended direct bindings:
+
+$(Code-Block "led_ip = MMIO(0x40000000, 0x1000)`nadc_ip = MMIO(0x40001000, 0x1000)`ndma = overlay.axi_dma_0" "python")
+
+## 3. Register Offsets Used By Notebook
+
+LED/RGB/button controller at ``0x40000000``:
+
+| Register | Offset | Meaning |
+|---|---:|---|
+$ledRegisterRows
+
+ADC capture controller at ``0x40001000``:
+
+| Register | Offset | Meaning |
+|---|---:|---|
+$adcRegisterRows
+
+AXI DMA at ``0x40400000``:
+
+| Register | Offset | Meaning |
+|---|---:|---|
+$dmaRegisterRows
+
+## 4. Exposed PL Pin Map
+
+These rows come from the active Lemon/PYNQ-Z1 XDC files. They are the board pins
+the bitstream exposes.
+
+| HDL Top Port | Board Meaning | PACKAGE_PIN | XDC File |
+|---|---|---|---|
+$pinRows
+
+## 5. Recommended DMA Files For PYNQ
 
 These are the files to copy when validating the current DMA capture path.
 
@@ -234,15 +387,15 @@ These are the files to copy when validating the current DMA capture path.
 |---|---|---:|---|
 $(Recommended-PynqRows $PynqDir)
 
-## 3. Board Files Present
+## 6. Board Files Present
 
 | File | Status | Bytes | Last Write Time |
 |---|---|---:|---|
 $(Pynq-FileRows $PynqDir)
 
-Legacy notebooks may still exist in this folder for reference. Do not use them for DMA validation if they access `overlay.base_add_0`.
+Legacy board notebooks have been moved to the history folder. Use the Lemon/PYNQ-Z1 notebook for board validation.
 
-## 4. Timing Summary
+## 7. Timing Summary
 
 Source file:
 
@@ -258,7 +411,7 @@ $(Code-Block $timingGoodLine "good")
 
 Rule: **WNS > 0** means setup timing passes.
 
-## 5. Resource Report
+## 8. Resource Report
 
 Source file:
 
@@ -268,7 +421,7 @@ Key lines:
 
 $(Code-Block $utilLine "warn")
 
-## 6. Vivado Project
+## 9. Vivado Project
 
 | File | Status |
 |---|---|
@@ -276,18 +429,18 @@ $(Code-Block $utilLine "warn")
 
 Open this project only when you want to inspect the block design or timing in the GUI.
 
-## 7. Next Step
+## 10. Next Step
 
 If this report shows **PASS**, upload these files to PYNQ:
 
 $(Code-Block $uploadText "cmd")
 
-For the DMA capture path, use:
+For the Lemon/PYNQ-Z1 board validation path, use:
 
-$(Code-Block "pynq/ad9226_capture_smoke.py`npynq/ad9226_capture_demo.ipynb" "cmd")
+$(Code-Block "pynq/lemon_pynqz1_board_adc_test.ipynb" "cmd")
 
-Do not use old notebooks that access `overlay.base_add_0` when validating DMA.
-Those belong to the previous HLS-writer path and can give a false PASS.
+Do not use old board notebooks when validating the Lemon/PYNQ-Z1 pinout.
+Those belong to the previous board flow and can give misleading LED/button/ADC results.
 
 "@
 

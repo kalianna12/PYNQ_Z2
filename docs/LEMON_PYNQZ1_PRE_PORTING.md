@@ -1,10 +1,10 @@
 # Lemon ZYNQ / PYNQ-Z1 Pre-Porting Notes
 
-Last reviewed: 2026-06-26
+Last reviewed: 2026-06-27
 
-This document records the pre-porting plan for moving the current
-PYNQ-Z2-oriented AD9226 capture overlay to the Lemon ZYNQ board that is intended
-to behave like a PYNQ-Z1-compatible board.
+This document records the Lemon ZYNQ / PYNQ-Z1 development plan and pin map for
+the AD9226 capture overlay. The previous board-specific files have been moved
+to the history folder.
 
 The immediate validation goal is:
 
@@ -25,7 +25,7 @@ The active project is currently built around the following Vivado settings:
 
 ```text
 part_name  = xc7z020clg400-1
-board_part = tul.com.tw:pynq-z2:part0:1.0
+board_part = www.digilentinc.com:pynq-z1:part0:1.0
 ```
 
 The current overlay path is:
@@ -39,8 +39,8 @@ AD9226 pins or RTL fake stream
   -> PYNQ Python uint32 buffer
 ```
 
-The architecture can stay the same after the board migration. The parts that
-must change are the board selection, PS preset, and XDC constraints.
+The architecture stays centered on AXI DMA S2MM capture into PS DDR. Board
+selection, PS preset, and XDC constraints now target the Lemon/PYNQ-Z1 flow.
 
 ## Tool Version Decision
 
@@ -70,15 +70,83 @@ The Lemon board is close to the official PYNQ-Z1 class of boards:
 - Board resources include LEDs, RGB LEDs, 4 push buttons, 2 DIP switches,
   HDMI RX/TX, audio, and a PL clock.
 
-Important difference from the current project:
+Important cleanup note:
 
 ```text
-Current project constraints target PYNQ-Z2.
-Lemon/PYNQ-Z1 needs its own XDC.
+Old board-specific constraints and notes were moved to 历史残留文件夹/.
+Current active constraints are lemon_pynqz1_board_io.xdc and
+lemon_pynqz1_adc_system.xdc.
 ```
 
-Do not reuse `constraints/pynq_adc_system.xdc` blindly on Lemon. That file is
-for the current PYNQ-Z2 wiring.
+## Lemon Board Pin Table From Reference Image
+
+The latest Lemon board resource table gives these package pins. Only resources
+that are actually exported by the current top-level RTL should be constrained in
+XDC. MIO resources belong to PS configuration, not PL XDC.
+
+```text
+UART:
+  ZYNQ_TX -> MIO15
+  ZYNQ_RX -> MIO14
+
+125M PL clock:
+  CLK -> H16
+
+KEY:
+  BTN0 -> D19
+  BTN1 -> D20
+  BTN2 -> L20
+  BTN3 -> L19
+
+LED:
+  LD0 -> R14
+  LD1 -> P14
+  LD2 -> N16
+  LD3 -> M14
+
+RGB LED:
+  LD5_R -> M15
+  LD5_G -> L14
+  LD5_B -> G14
+  LD4_R -> N15
+  LD4_G -> G17
+  LD4_B -> L15
+
+DIP switch:
+  SW1 -> M19
+  SW0 -> M20
+
+MIC:
+  M_DATA -> G18
+  M_CLK  -> F17
+
+AUDIO OUT:
+  AUD_PWM_L -> T17
+  AUD_PWM_R -> R18
+
+HDMI RX:
+  CLK -> N18
+  D0  -> V20
+  D1  -> T20
+  D2  -> N20
+  SDA -> U15
+  SCL -> U14
+  HPD -> T19
+
+HDMI TX:
+  CLK -> L16
+  D0  -> K17
+  D1  -> K19
+  D2  -> J18
+  SDA -> M18
+  SCL -> M17
+  HPD -> R19
+```
+
+Current overlay note: the design still uses the Zynq PS FCLK for AXI and capture
+logic. Therefore the H16 125M PL clock is documented here but not constrained in
+`lemon_pynqz1_board_io.xdc` until a top-level `sys_clk` or equivalent port is
+added.
 
 ## Official PYNQ-Z1 / Verified Board Resource Pins
 
@@ -101,37 +169,38 @@ www.digilentinc.com:pynq-z1:part0:1.0
 Official PYNQ-Z1 board LEDs:
 
 ```text
-LD0 / led[0] -> M14
+LD0 / led[0] -> R14
 LD1 / led[1] -> P14
 LD2 / led[2] -> N16
-LD3 / led[3] -> R14
+LD3 / led[3] -> M14
 ```
 
 Official PYNQ-Z1 board buttons:
 
 ```text
-BTN0 / btn[0] -> L20
+BTN0 / btn[0] -> D19
 BTN1 / btn[1] -> D20
-BTN2 / btn[2] -> D19
+BTN2 / btn[2] -> L20
 BTN3 / btn[3] -> L19
 ```
 
-Lemon board RGB LEDs from the schematic summary:
+Lemon board RGB LEDs from the pin table:
 
 ```text
-LD4_B / rgb[0] -> M15
-LD4_G / rgb[1] -> G14
-LD4_R / rgb[2] -> L14
-LD5_B / rgb[3] -> N15
-LD5_G / rgb[4] -> G17
-LD5_R / rgb[5] -> L15
+LD5_R -> M15
+LD5_G -> L14
+LD5_B -> G14
+LD4_R -> N15
+LD4_G -> G17
+LD4_B -> L15
 ```
 
-The final verified physical RGB mapping is board-specific. Do not treat RGB as
-a single fixed color number shared by both LEDs.
+The final physical RGB pin order follows the Lemon reference image: both RGB
+LEDs use bit order `R G B`. The register field names are still historical, so
+the software helper keeps the LD4/LD5 field swap.
 
 Register field `ld4_color` controls the physical board LED `LD5`, with bit
-order `R B G`.
+order `R G B`.
 
 Register field `ld5_color` controls the physical board LED `LD4`, with bit
 order `R G B`.
@@ -149,15 +218,15 @@ CYAN    = 0b110
 WHITE   = 0b111
 ```
 
-Physical `LD5`, bit order `R B G`:
+Physical `LD5`, bit order `R G B`:
 
 ```text
 OFF     = 0b000
 RED     = 0b001
-GREEN   = 0b100
-BLUE    = 0b010
-YELLOW  = 0b101
-MAGENTA = 0b011
+GREEN   = 0b010
+BLUE    = 0b100
+YELLOW  = 0b011
+MAGENTA = 0b101
 CYAN    = 0b110
 WHITE   = 0b111
 ```
@@ -203,49 +272,9 @@ sys_clk -> H16
 The DIP switches are not part of the first-stage requirement, but the pins are
 kept here for later board checks.
 
-If later testing finds LED/RGB polarity is inverted, fix the PS-side test code
-or add an inversion option in the LED GPIO register layer. Do not move pins
-unless the schematic or board test proves the pin assignment is wrong.
-
-Manual board test results for the current overlay:
-
-```text
-led_mask bit0 -> physical LD3
-led_mask bit1 -> physical LD1
-led_mask bit2 -> physical LD2
-led_mask bit3 -> physical LD0
-```
-
-Use this physical helper mapping in notebooks:
-
-```python
-LED_PHYS_TO_MASK = {
-    0: 0b1000,
-    1: 0b0010,
-    2: 0b0100,
-    3: 0b0001,
-}
-```
-
-Manual button test results:
-
-```text
-physical BTN0 -> raw bit2 -> 0b0100
-physical BTN1 -> raw bit1 -> 0b0010
-physical BTN2 -> raw bit0 -> 0b0001
-physical BTN3 -> raw bit3 -> 0b1000
-```
-
-Use this physical helper mapping in notebooks:
-
-```python
-BTN_PHYS_TO_MASK = {
-    0: 0b0100,
-    1: 0b0010,
-    2: 0b0001,
-    3: 0b1000,
-}
-```
+Cell 2 of the generic notebook has verified that LED, RGB, and button bits now
+match the XDC directly. Do not add software helper remapping tables for these
+signals in future notebooks.
 
 ## Expansion Header Availability
 
@@ -302,23 +331,23 @@ read button bit 0..3      -> observe BTN0..BTN3 state changes
 Recommended first-stage XDC signal naming:
 
 ```xdc
-set_property PACKAGE_PIN M14 [get_ports {leds_4bits_tri_o[0]}]
+set_property PACKAGE_PIN R14 [get_ports {leds_4bits_tri_o[0]}]
 set_property PACKAGE_PIN P14 [get_ports {leds_4bits_tri_o[1]}]
 set_property PACKAGE_PIN N16 [get_ports {leds_4bits_tri_o[2]}]
-set_property PACKAGE_PIN R14 [get_ports {leds_4bits_tri_o[3]}]
+set_property PACKAGE_PIN M14 [get_ports {leds_4bits_tri_o[3]}]
 set_property IOSTANDARD LVCMOS33 [get_ports {leds_4bits_tri_o[*]}]
 
 set_property PACKAGE_PIN M15 [get_ports {rgb_leds_6bits_tri_o[0]}]
-set_property PACKAGE_PIN G14 [get_ports {rgb_leds_6bits_tri_o[1]}]
-set_property PACKAGE_PIN L14 [get_ports {rgb_leds_6bits_tri_o[2]}]
+set_property PACKAGE_PIN L14 [get_ports {rgb_leds_6bits_tri_o[1]}]
+set_property PACKAGE_PIN G14 [get_ports {rgb_leds_6bits_tri_o[2]}]
 set_property PACKAGE_PIN N15 [get_ports {rgb_leds_6bits_tri_o[3]}]
 set_property PACKAGE_PIN G17 [get_ports {rgb_leds_6bits_tri_o[4]}]
 set_property PACKAGE_PIN L15 [get_ports {rgb_leds_6bits_tri_o[5]}]
 set_property IOSTANDARD LVCMOS33 [get_ports {rgb_leds_6bits_tri_o[*]}]
 
-set_property PACKAGE_PIN L20 [get_ports {btns_4bits_tri_i[0]}]
+set_property PACKAGE_PIN D19 [get_ports {btns_4bits_tri_i[0]}]
 set_property PACKAGE_PIN D20 [get_ports {btns_4bits_tri_i[1]}]
-set_property PACKAGE_PIN D19 [get_ports {btns_4bits_tri_i[2]}]
+set_property PACKAGE_PIN L20 [get_ports {btns_4bits_tri_i[2]}]
 set_property PACKAGE_PIN L19 [get_ports {btns_4bits_tri_i[3]}]
 set_property IOSTANDARD LVCMOS33 [get_ports {btns_4bits_tri_i[*]}]
 ```
@@ -329,6 +358,120 @@ This test proves:
 - PS AXI-Lite access works.
 - Board-level single-color LED, RGB LED, and button constraints are correct.
 - The PL fabric remains available while the ADC module is also present.
+
+Verified board result on 2026-06-27:
+
+```text
+Generic notebook Cell 2 passed with direct XDC/register mapping.
+LD0..LD3, LD4 RGB, LD5 RGB, and BTN0..BTN3 all behaved correctly.
+```
+
+Use this direct mapping from now on. Do not add software-side LED/button
+remapping tables such as `LED_PHYS_TO_MASK` or `BTN_PHYS_TO_MASK`; those hide
+XDC mistakes and are not suitable for board validation.
+
+Direct mapping that is now accepted as correct:
+
+```text
+LED_VALUE bit0 -> physical LD0 -> R14
+LED_VALUE bit1 -> physical LD1 -> P14
+LED_VALUE bit2 -> physical LD2 -> N16
+LED_VALUE bit3 -> physical LD3 -> M14
+
+LED_VALUE bits[6:4] -> physical LD5 R/G/B -> M15/L14/G14
+LED_VALUE bits[9:7] -> physical LD4 R/G/B -> N15/G17/L15
+
+LED_STATUS bit10 -> physical BTN0 -> D19
+LED_STATUS bit11 -> physical BTN1 -> D20
+LED_STATUS bit12 -> physical BTN2 -> L20
+LED_STATUS bit13 -> physical BTN3 -> L19
+```
+
+## PYNQ Fixed Address Contract
+
+Notebook code must use the fixed physical addresses from `base_add.hwh` instead
+of guessing write methods from `overlay.<ip_name>`. Custom RTL IP can appear as
+hierarchy/IPMap objects in PYNQ, so direct `.write()` on the overlay attribute is
+not reliable.
+
+Current address map:
+
+```text
+led_ctrl_0    base 0x40000000, high 0x40000FFF, range 0x1000
+adc_capture_0 base 0x40001000, high 0x40001FFF, range 0x1000
+axi_dma_0     base 0x40400000, high 0x4040FFFF, range 0x10000
+```
+
+Use these bindings in notebooks:
+
+```python
+from pynq import Overlay, MMIO
+
+overlay = Overlay("base_add.bit")
+led_ip = MMIO(0x40000000, 0x1000)
+adc_ip = MMIO(0x40001000, 0x1000)
+dma = overlay.axi_dma_0
+```
+
+The Vivado report generator must list this address map, the register offsets,
+and all exposed XDC pins. Treat `VIVADO_OVERLAY_REPORT.md` as the handoff sheet
+for PYNQ-side code.
+
+LED/RGB/button register offsets:
+
+```text
+LED_CTRL   0x00
+LED_VALUE  0x08
+LED_STATUS 0x0C
+```
+
+`LED_VALUE` direct bit layout:
+
+```text
+bits[3:0] -> LD0, LD1, LD2, LD3
+bits[6:4] -> physical LD5 R, G, B
+bits[9:7] -> physical LD4 R, G, B
+```
+
+`LED_STATUS` direct bit layout:
+
+```text
+bits[3:0]   -> current LD0..LD3 value
+bits[9:4]   -> current RGB value
+bits[13:10] -> BTN0, BTN1, BTN2, BTN3
+```
+
+ADC capture register offsets used by the generic notebook:
+
+```text
+CTRL                  0x00
+STATUS                0x04
+SAMPLE_COUNT          0x08
+ADC_HALF              0x0C
+SAMPLE_DELAY          0x10
+DECIMATION            0x14
+CHANNEL_MASK          0x18
+CAPTURE_MODE          0x1C
+TRIGGER_MODE          0x20
+PRE_DELAY             0x24
+BUFFER_SELECT         0x28
+LATEST_A              0x2C
+LATEST_B              0x30
+SAMPLE_COUNTER        0x34
+FIFO_LEVEL            0x38
+ERROR_FLAGS           0x3C
+VERSION               0x44
+SAVED_COUNTER         0x48
+LAST_AXIS_WORD        0x4C
+DEBUG_STATE           0x50
+AXIS_SENT_COUNT       0x54
+AXIS_STALL_COUNT      0x58
+TLAST_COUNT           0x5C
+FIFO_BACKPRESSURE     0x60
+DROPPED_SAMPLE_COUNT  0x64
+CAPTURE_DONE_LATCHED  0x68
+CORE_DONE             0x6C
+```
 
 ## PL Pin Conflict Rules
 
@@ -375,8 +518,7 @@ That is 28 PL signals:
 Porting rule:
 
 ```text
-Create a Lemon-specific ADC XDC.
-Do not edit the PYNQ-Z2 XDC in place.
+Use the Lemon-specific ADC XDC.
 Keep LED/button/RGB XDC active at the same time.
 ```
 
@@ -464,7 +606,7 @@ flow and explicitly configure PS7 according to the Lemon/PYNQ-Z1 base design.
 5. Read button AXI registers from Jupyter and verify all 4 input bits.
 6. Test `capture_mode = 2` fake stream through DMA.
 7. Test real ADC capture at a slow/known-good rate.
-8. Run the AFSK notebook/service after the waveform is correct.
+8. Use the generic ADC notebook/helper as the continuing bring-up path.
 
 ## Notes for the User's Header Table
 

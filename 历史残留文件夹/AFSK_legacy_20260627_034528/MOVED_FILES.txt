@@ -1,0 +1,12 @@
+﻿Moved AFSK/SMS/UART/service files from G:\VSCODE_Save_Files\PYNQ_Z2Code\PYNQZ2_PSPL_Base
+Timestamp: 20260627_034528
+
+Files/folders:
+- pynq\afsk_sms_decode.py
+- pynq\afsk_sms_receiver.ipynb
+- pynq\afsk_sms_receiver_131k.ipynb
+- pynq\afsk_sms_receiver_service.py
+- pynq\afsk_sms_uart_test.ipynb
+- pynq\install_afsk_service.sh
+- pynq\systemd
+- pynq\__pycache__

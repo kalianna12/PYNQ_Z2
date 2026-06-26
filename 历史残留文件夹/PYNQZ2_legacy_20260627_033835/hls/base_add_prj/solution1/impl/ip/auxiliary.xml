@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<xd:acceleratorMap xmlns:xd="http://www.xilinx.com/xidane" xd:functionName="base_add" xd:componentRef="base_add" xd:initiationInterval="131082" xd:clockPeriod="10.000" xd:sequential="true" xd:hostMachine="64" xd:reset="control">
+  <xd:controlReg xd:name="control" xd:interfaceRef="s_axi_CTRL" xd:busTypeRef="axilite" xd:type="generic_axi_lite" xd:offset="0x0"/>
+  <xd:arg xd:name="*(buffer)" xd:originalName="buffer" xd:direction="inout" xd:interfaceRef="m_axi_GMEM" xd:busTypeRef="aximm" xd:arraySize="131072" xd:dataWidth="32" xd:bufferDirection="out"/>
+  <xd:arg xd:name="buffer_r" xd:originalName="buffer_r" xd:direction="in" xd:interfaceRef="s_axi_CTRL" xd:busTypeRef="axilite" xd:aximmInterfaceRef="m_axi_GMEM" xd:dataWidth="32" xd:offset="0x10" xd:handshakeRef="ap_none"/>
+  <xd:arg xd:name="sample_count" xd:originalName="sample_count" xd:direction="in" xd:interfaceRef="s_axi_CTRL" xd:busTypeRef="axilite" xd:dataWidth="32" xd:offset="0x18" xd:handshakeRef="ap_none"/>
+  <xd:arg xd:name="capture_mode" xd:originalName="capture_mode" xd:direction="in" xd:interfaceRef="s_axi_CTRL" xd:busTypeRef="axilite" xd:dataWidth="32" xd:offset="0x20" xd:handshakeRef="ap_none"/>
+  <xd:arg xd:name="sample_stream" xd:originalName="sample_stream" xd:direction="in" xd:interfaceRef="sample_stream_V_V" xd:busTypeRef="axis" xd:dataWidth="32"/>
+  <xd:latencyEstimates xd:best-case="11" xd:worst-case="131081" xd:average-case="65545"/>
+  <xd:resourceEstimates xd:LUT="1354" xd:FF="986" xd:BRAM="2" xd:DSP="0"/>
+</xd:acceleratorMap>
