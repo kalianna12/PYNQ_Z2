@@ -1,6 +1,6 @@
 ﻿# Vivado Overlay Report
 
-Generated: **2026-06-10 22:28:40**
+Generated: **2026-06-27 00:34:44**
 
 ## 1. Build Status
 
@@ -10,6 +10,9 @@ Generated: **2026-06-10 22:28:40**
 | Copy bit to pynq folder | <span style="color:#008000;font-weight:bold;font-size:16px;">PASS</span> | pynq/base_add.bit updated |
 | Copy hwh to pynq folder | <span style="color:#008000;font-weight:bold;font-size:16px;">PASS</span> | pynq/base_add.hwh updated |
 | RTL LED controller in HWH | <span style="color:#008000;font-weight:bold;font-size:16px;">PASS</span> | PS can discover the AXI-Lite LED IP from .hwh |
+| 4 single-color LED output port | <span style="color:#008000;font-weight:bold;font-size:16px;">PASS</span> | leds_4bits_tri_o is exported to board pins |
+| 2 RGB LED output port | <span style="color:#008000;font-weight:bold;font-size:16px;">PASS</span> | rgb_leds_6bits_tri_o is exported to board pins |
+| 4 button input port | <span style="color:#008000;font-weight:bold;font-size:16px;">PASS</span> | btns_4bits_tri_i is exported to board pins |
 | AD9226 capture controller in HWH | <span style="color:#008000;font-weight:bold;font-size:16px;">PASS</span> | PS can discover adc_capture_0 from hwh |
 | AXI DMA S2MM in HWH | <span style="color:#008000;font-weight:bold;font-size:16px;">PASS</span> | PS can discover axi_dma_0 and use recvchannel |
 | AXI DMA in BD script | <span style="color:#008000;font-weight:bold;font-size:16px;">PASS</span> | build.tcl creates axi_dma_0 and connects S2MM stream |
@@ -34,8 +37,8 @@ These are the files to copy when validating the current DMA capture path.
 
 | File | Status | Bytes | Last Write Time |
 |---|---|---:|---|
-| base_add.bit | <span style="color:#008000;font-weight:bold;">FOUND</span> | 4045674 | 2026-06-10 22:28:34 |
-| base_add.hwh | <span style="color:#008000;font-weight:bold;">FOUND</span> | 326221 | 2026-06-10 22:20:02 |
+| base_add.bit | <span style="color:#008000;font-weight:bold;">FOUND</span> | 4045674 | 2026-06-27 00:33:17 |
+| base_add.hwh | <span style="color:#008000;font-weight:bold;">FOUND</span> | 335664 | 2026-06-27 00:27:40 |
 | ad9226_capture_smoke.py | <span style="color:#008000;font-weight:bold;">FOUND</span> | 7797 | 2026-06-03 05:29:58 |
 | ad9226_capture_demo.ipynb | <span style="color:#008000;font-weight:bold;">FOUND</span> | 6840 | 2026-06-03 05:15:07 |
 
@@ -43,11 +46,12 @@ These are the files to copy when validating the current DMA capture path.
 
 | File | Status | Bytes | Last Write Time |
 |---|---|---:|---|
-| base_add.bit | <span style="color:#008000;font-weight:bold;">FOUND</span> | 4045674 | 2026-06-10 22:28:34 |
-| base_add.hwh | <span style="color:#008000;font-weight:bold;">FOUND</span> | 326221 | 2026-06-10 22:20:02 |
+| base_add.bit | <span style="color:#008000;font-weight:bold;">FOUND</span> | 4045674 | 2026-06-27 00:33:17 |
+| base_add.hwh | <span style="color:#008000;font-weight:bold;">FOUND</span> | 335664 | 2026-06-27 00:27:40 |
 | ad9226_capture_demo.ipynb | <span style="color:#008000;font-weight:bold;">FOUND</span> | 6840 | 2026-06-03 05:15:07 |
 | afsk_sms_receiver.ipynb | <span style="color:#008000;font-weight:bold;">FOUND</span> | 15130 | 2026-06-08 22:52:06 |
 | afsk_sms_receiver_131k.ipynb | <span style="color:#008000;font-weight:bold;">FOUND</span> | 19366 | 2026-06-10 21:48:33 |
+| afsk_sms_uart_test.ipynb | <span style="color:#008000;font-weight:bold;">FOUND</span> | 21086 | 2026-06-12 17:26:25 |
 | ad9226_capture_smoke.py | <span style="color:#008000;font-weight:bold;">FOUND</span> | 7797 | 2026-06-03 05:29:58 |
 | afsk_sms_decode.py | <span style="color:#008000;font-weight:bold;">FOUND</span> | 5035 | 2026-06-08 20:48:45 |
 | afsk_sms_receiver_service.py | <span style="color:#008000;font-weight:bold;">FOUND</span> | 14007 | 2026-06-08 23:26:35 |
@@ -64,7 +68,7 @@ G:\VSCODE_Save_Files\PYNQ_Z2Code\PYNQZ2_PSPL_Base\build\vivado\base_add_overlay.
 
 | WNS ns | TNS ns | WHS ns | THS ns | Result |
 |---:|---:|---:|---:|---|
-| **0.805** | **0.000** | **0.033** | **0.000** | <span style="color:#008000;font-weight:bold;font-size:16px;">PASS</span> |
+| **0.790** | **0.000** | **0.051** | **0.000** | <span style="color:#008000;font-weight:bold;font-size:16px;">PASS</span> |
 
 Good sign:
 
@@ -85,10 +89,10 @@ G:\VSCODE_Save_Files\PYNQ_Z2Code\PYNQZ2_PSPL_Base\build\vivado\base_add_overlay.
 Key lines:
 
 ~~~text
-| Slice LUTs                 | 2558 |     0 |     53200 |  4.81 |
-| Block RAM Tile    |   18 |     0 |       140 | 12.86 |
+| Slice LUTs                 | 2391 |     0 |          0 |     53200 |  4.49 |
+| Block RAM Tile    |   20 |     0 |          0 |       140 | 14.29 |
 * Note: Each Block RAM Tile only has one FIFO logic available and therefore can accommodate only one FIFO36E1 or one FIFO18E1. However, if a FIFO18E1 occupies a Block RAM Tile, that tile can still accommodate a RAMB18E1
-| DSPs      |    0 |     0 |       220 |  0.00 |
+| DSPs      |    0 |     0 |          0 |       220 |  0.00 |
 ~~~
 
 ## 6. Vivado Project

@@ -38,7 +38,7 @@
     {
       "label": "FPGA: Open Vivado Project",
       "type": "shell",
-      "command": "G:\\Xilinx\\Vivado\\2018.2\\bin\\vivado.bat",
+      "command": "G:\\VIVADO2022\\Vivado\\2022.1\\bin\\vivado.bat",
       "args": [
         "${workspaceFolder}\\build\\vivado\\base_add_overlay.xpr"
       ],

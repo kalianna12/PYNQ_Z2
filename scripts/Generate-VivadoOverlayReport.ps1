@@ -104,10 +104,14 @@ $utilText = Read-AllTextSafe $UtilRpt
 $hwhText = Read-AllTextSafe $HwhFile
 $buildText = Read-AllTextSafe $BuildTcl
 
-$bitgenStatus = if (Test-Path $BitFile) { "PASS" } elseif ($logText -match "Bitgen Completed Successfully") { "PASS" } elseif (Test-Path $VivadoLog) { "CHECK" } else { "MISSING" }
+$vivadoErrorSeen = ($logText -match "ERROR: \[" -or $logText -match "failed due to earlier errors")
+$bitgenStatus = if ($vivadoErrorSeen) { "FAIL" } elseif (Test-Path $BitFile) { "PASS" } elseif ($logText -match "Bitgen Completed Successfully") { "PASS" } elseif (Test-Path $VivadoLog) { "CHECK" } else { "MISSING" }
 $copyBitStatus = if (Test-Path $BitFile) { "PASS" } elseif ($logText -match "Copied bitstream") { "PASS" } else { "CHECK" }
 $copyHwhStatus = if (Test-Path $HwhFile) { "PASS" } elseif ($logText -match "Copied handoff") { "PASS" } else { "CHECK" }
 $ledCtrlStatus = if ($hwhText -match "led_ctrl_0|led_ctrl_axi") { "PASS" } elseif (Test-Path $HwhFile) { "CHECK" } else { "MISSING" }
+$ledPortStatus = if ($hwhText -match "leds_4bits_tri_o") { "PASS" } elseif (Test-Path $HwhFile) { "CHECK" } else { "MISSING" }
+$rgbPortStatus = if ($hwhText -match "rgb_leds_6bits_tri_o") { "PASS" } elseif (Test-Path $HwhFile) { "CHECK" } else { "MISSING" }
+$buttonPortStatus = if ($hwhText -match "btns_4bits_tri_i") { "PASS" } elseif (Test-Path $HwhFile) { "CHECK" } else { "MISSING" }
 $adcCaptureStatus = if ($hwhText -match "adc_capture_0|adc_capture_system") { "PASS" } elseif (Test-Path $HwhFile) { "CHECK" } else { "MISSING" }
 $dmaStatus = if ($hwhText -match "INSTANCE=`"axi_dma_0`"") { "PASS" } elseif (Test-Path $HwhFile) { "CHECK" } else { "MISSING" }
 $axisFifoStatus = if ($hwhText -match "INSTANCE=`"axis_data_fifo_0`"") { "PASS" } elseif (Test-Path $HwhFile) { "CHECK" } else { "MISSING" }
@@ -201,6 +205,9 @@ Generated: **$now**
 | Copy bit to pynq folder | $(Status-Badge $copyBitStatus) | `pynq/base_add.bit` updated |
 | Copy hwh to pynq folder | $(Status-Badge $copyHwhStatus) | `pynq/base_add.hwh` updated |
 | RTL LED controller in HWH | $(Status-Badge $ledCtrlStatus) | PS can discover the AXI-Lite LED IP from `.hwh` |
+| 4 single-color LED output port | $(Status-Badge $ledPortStatus) | leds_4bits_tri_o is exported to board pins |
+| 2 RGB LED output port | $(Status-Badge $rgbPortStatus) | rgb_leds_6bits_tri_o is exported to board pins |
+| 4 button input port | $(Status-Badge $buttonPortStatus) | btns_4bits_tri_i is exported to board pins |
 | AD9226 capture controller in HWH | $(Status-Badge $adcCaptureStatus) | PS can discover adc_capture_0 from hwh |
 | AXI DMA S2MM in HWH | $(Status-Badge $dmaStatus) | PS can discover axi_dma_0 and use recvchannel |
 | AXI DMA in BD script | $(Status-Badge $dmaBdStatus) | build.tcl creates axi_dma_0 and connects S2MM stream |

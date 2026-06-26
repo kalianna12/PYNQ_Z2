@@ -3,10 +3,12 @@ set root_dir [file normalize [file join $script_dir ..]]
 set project_name base_add_overlay
 set design_name system
 set part_name xc7z020clg400-1
-set board_part tul.com.tw:pynq-z2:part0:1.0
+set board_part www.digilentinc.com:pynq-z1:part0:1.0
 
 set build_dir [file join $root_dir build vivado]
 set pynq_dir [file join $root_dir pynq]
+set board_repo_dir [file join $root_dir board_files]
+set external_board_repo_dir [file normalize "G:/FIREFOX下载"]
 set rtl_src [list \
     [file join $root_dir rtl src led_ctrl_axi.v] \
     [file join $root_dir rtl src adc_ctrl_axi.v] \
@@ -14,16 +16,27 @@ set rtl_src [list \
     [file join $root_dir rtl src adc_sample_fifo.v] \
     [file join $root_dir rtl src adc_capture_system.v] \
 ]
-set led_xdc [file join $root_dir constraints pynqz2_leds.xdc]
-set adc_xdc [file join $root_dir constraints pynq_adc_system.xdc]
+set board_io_xdc [file join $root_dir constraints lemon_pynqz1_board_io.xdc]
+set adc_xdc [file join $root_dir constraints lemon_pynqz1_adc_system.xdc]
 
 file mkdir $build_dir
 file mkdir $pynq_dir
 
+set board_repo_paths [list]
+if {[file exists $external_board_repo_dir]} {
+    lappend board_repo_paths $external_board_repo_dir
+}
+if {[file exists $board_repo_dir]} {
+    lappend board_repo_paths $board_repo_dir
+}
+if {[llength $board_repo_paths] != 0} {
+    set_param board.repoPaths $board_repo_paths
+}
+
 create_project -force $project_name $build_dir -part $part_name
 set_property board_part $board_part [current_project]
 add_files -norecurse $rtl_src
-add_files -fileset constrs_1 -norecurse $led_xdc
+add_files -fileset constrs_1 -norecurse $board_io_xdc
 if {[file exists $adc_xdc]} {
     add_files -fileset constrs_1 -norecurse $adc_xdc
 } else {
@@ -57,9 +70,22 @@ apply_bd_automation -rule xilinx.com:bd_rule:axi4 \
     $led_ctrl_pin
 
 make_bd_pins_external [get_bd_pins led_ctrl_0/leds_4bits_tri_o]
+make_bd_pins_external [get_bd_pins led_ctrl_0/rgb_leds_6bits_tri_o]
+make_bd_pins_external [get_bd_pins led_ctrl_0/btns_4bits_tri_i]
 set led_bd_port [get_bd_ports -quiet leds_4bits_tri_o_0]
 if {[llength $led_bd_port] != 0} {
     set_property name leds_4bits_tri_o $led_bd_port
+}
+foreach ext_pair {
+    {rgb_leds_6bits_tri_o_0 rgb_leds_6bits_tri_o}
+    {btns_4bits_tri_i_0 btns_4bits_tri_i}
+} {
+    set old_name [lindex $ext_pair 0]
+    set new_name [lindex $ext_pair 1]
+    set bd_port [get_bd_ports -quiet $old_name]
+    if {[llength $bd_port] != 0} {
+        set_property name $new_name $bd_port
+    }
 }
 
 create_bd_cell -type module -reference adc_capture_system adc_capture_0
@@ -103,12 +129,11 @@ if {[llength $adc_axis_pin] == 0} {
     exit 1
 }
 
-set axis_fifo_ipdefs [get_ipdefs -all *axis_data_fifo*]
-if {[llength $axis_fifo_ipdefs] == 0} {
-    puts "ERROR: Could not find AXIS Data FIFO IP in Vivado catalog"
+set axis_fifo_vlnv xilinx.com:ip:axis_data_fifo:2.0
+if {[llength [get_ipdefs -all $axis_fifo_vlnv]] == 0} {
+    puts "ERROR: Could not find supported AXIS Data FIFO IP: $axis_fifo_vlnv"
     exit 1
 }
-set axis_fifo_vlnv [lindex $axis_fifo_ipdefs 0]
 create_bd_cell -type ip -vlnv $axis_fifo_vlnv axis_data_fifo_0
 set_property -dict [list \
     CONFIG.TDATA_NUM_BYTES {4} \
@@ -117,12 +142,11 @@ set_property -dict [list \
     CONFIG.HAS_TKEEP {1} \
 ] [get_bd_cells axis_data_fifo_0]
 
-set dma_ipdefs [get_ipdefs -all *axi_dma*]
-if {[llength $dma_ipdefs] == 0} {
-    puts "ERROR: Could not find AXI DMA IP in Vivado catalog"
+set dma_vlnv xilinx.com:ip:axi_dma:7.1
+if {[llength [get_ipdefs -all $dma_vlnv]] == 0} {
+    puts "ERROR: Could not find supported AXI DMA IP: $dma_vlnv"
     exit 1
 }
-set dma_vlnv [lindex $dma_ipdefs 0]
 create_bd_cell -type ip -vlnv $dma_vlnv axi_dma_0
 set_property -dict [list \
     CONFIG.c_include_sg {0} \
@@ -171,6 +195,7 @@ if {[llength $fclk0_pin] == 0} {
 }
 
 foreach clk_target {
+    led_ctrl_0/S_AXI_ACLK
     adc_capture_0/S_AXI_ACLK
     axi_dma_0/s_axi_lite_aclk
     axi_dma_0/m_axi_s2mm_aclk
@@ -204,6 +229,7 @@ if {[llength $resetn_pin] == 0} {
 set resetn_pin [lindex $resetn_pin 0]
 
 foreach rst_target {
+    led_ctrl_0/S_AXI_ARESETN
     adc_capture_0/S_AXI_ARESETN
     axi_dma_0/axi_resetn
     axis_data_fifo_0/s_axis_aresetn
@@ -248,6 +274,7 @@ wait_on_run impl_1
 
 set bit_file [file join $build_dir "$project_name.runs" impl_1 "${design_name}_wrapper.bit"]
 set hwh_file [file join $build_dir "$project_name.srcs" sources_1 bd $design_name hw_handoff "${design_name}.hwh"]
+set hwh_file_gen [file join $build_dir "$project_name.gen" sources_1 bd $design_name hw_handoff "${design_name}.hwh"]
 
 if {[file exists $bit_file]} {
     file copy -force $bit_file [file join $pynq_dir base_add.bit]
@@ -259,8 +286,11 @@ if {[file exists $bit_file]} {
 if {[file exists $hwh_file]} {
     file copy -force $hwh_file [file join $pynq_dir base_add.hwh]
     puts "Copied handoff to [file join $pynq_dir base_add.hwh]"
+} elseif {[file exists $hwh_file_gen]} {
+    file copy -force $hwh_file_gen [file join $pynq_dir base_add.hwh]
+    puts "Copied handoff to [file join $pynq_dir base_add.hwh]"
 } else {
-    puts "WARNING: HWH not found: $hwh_file"
+    puts "WARNING: HWH not found: $hwh_file or $hwh_file_gen"
 }
 
 exit

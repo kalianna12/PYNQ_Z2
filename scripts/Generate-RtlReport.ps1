@@ -10,7 +10,7 @@ $AdcRtlSimLog = Join-Path $Root "rtl\sim\ad9226_capture_sim.log"
 $AdcInnerSimLog = Join-Path $Root "rtl\sim\ad9226_capture_sim.sim\sim_1\behav\xsim\simulate.log"
 $HighSpeedRtlSimLog = Join-Path $Root "rtl\sim_highspeed\ad9226_highspeed_sim.log"
 $HighSpeedInnerSimLog = Join-Path $Root "rtl\sim_highspeed\ad9226_highspeed_sim.sim\sim_1\behav\xsim\simulate.log"
-$LedXdc = Join-Path $Root "constraints\pynqz2_leds.xdc"
+$LedXdc = Join-Path $Root "constraints\lemon_pynqz1_board_io.xdc"
 
 function Read-AllTextSafe($Path) {
     if (Test-Path $Path) { return [System.IO.File]::ReadAllText($Path) }

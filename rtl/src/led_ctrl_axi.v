@@ -2,7 +2,7 @@
 
 module led_ctrl_axi #(
     parameter integer C_S_AXI_DATA_WIDTH = 32,
-    parameter integer C_S_AXI_ADDR_WIDTH = 4,
+    parameter integer C_S_AXI_ADDR_WIDTH = 5,
     parameter integer DEFAULT_SPEED_DIV = 25000000
 ) (
     (* X_INTERFACE_INFO = "xilinx.com:signal:clock:1.0 S_AXI_ACLK CLK" *)
@@ -55,10 +55,12 @@ module led_ctrl_axi #(
     (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 S_AXI RREADY" *)
     input wire S_AXI_RREADY,
 
-    output reg [3:0] leds_4bits_tri_o
+    output reg [3:0] leds_4bits_tri_o,
+    output reg [5:0] rgb_leds_6bits_tri_o,
+    input wire [3:0] btns_4bits_tri_i
 );
     localparam integer ADDR_LSB = 2;
-    localparam integer REG_INDEX_BITS = 2;
+    localparam integer REG_INDEX_BITS = 3;
 
     reg [C_S_AXI_ADDR_WIDTH-1:0] axi_awaddr;
     reg [C_S_AXI_ADDR_WIDTH-1:0] axi_araddr;
@@ -72,6 +74,8 @@ module led_ctrl_axi #(
     reg [31:0] tick_count;
     reg blink_state;
     reg [1:0] walk_index;
+    reg [3:0] btn_sync_0;
+    reg [3:0] btn_sync_1;
 
     wire write_enable;
     wire read_enable;
@@ -181,6 +185,7 @@ module led_ctrl_axi #(
             blink_state <= 1'b0;
             walk_index <= 2'b00;
             leds_4bits_tri_o <= 4'h0;
+            rgb_leds_6bits_tri_o <= 6'h00;
         end else begin
             if (tick_now) begin
                 div_count <= 32'h00000000;
@@ -195,21 +200,27 @@ module led_ctrl_axi #(
                 leds_4bits_tri_o <= led_value_reg[3:0];
             end else begin
                 case (mode)
-                    3'd0: leds_4bits_tri_o <= led_value_reg[3:0];
-                    3'd1: leds_4bits_tri_o <= blink_state ? 4'hF : 4'h0;
-                    3'd2: leds_4bits_tri_o <= 4'b0001 << walk_index;
-                    3'd3: leds_4bits_tri_o <= tick_count[3:0];
-                    default: leds_4bits_tri_o <= led_value_reg[3:0];
+                3'd0: leds_4bits_tri_o <= led_value_reg[3:0];
+                3'd1: leds_4bits_tri_o <= blink_state ? 4'hF : 4'h0;
+                3'd2: leds_4bits_tri_o <= 4'b0001 << walk_index;
+                3'd3: leds_4bits_tri_o <= tick_count[3:0];
+                default: leds_4bits_tri_o <= led_value_reg[3:0];
                 endcase
             end
+
+            rgb_leds_6bits_tri_o <= led_value_reg[9:4];
         end
     end
 
     always @(posedge S_AXI_ACLK) begin
         if (!S_AXI_ARESETN) begin
             status_reg <= 32'h00000000;
+            btn_sync_0 <= 4'h0;
+            btn_sync_1 <= 4'h0;
         end else begin
-            status_reg <= {24'h000000, tick_count[3:0], leds_4bits_tri_o};
+            btn_sync_0 <= btns_4bits_tri_i;
+            btn_sync_1 <= btn_sync_0;
+            status_reg <= {18'h00000, btn_sync_1, rgb_leds_6bits_tri_o, leds_4bits_tri_o};
         end
     end
 
