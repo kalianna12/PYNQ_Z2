@@ -1,9 +1,9 @@
 # Lemon ZYNQ / PYNQ-Z1 Pre-Porting Notes
 
-Last reviewed: 2026-06-27
+Last reviewed: 2026-06-28
 
 This document records the Lemon ZYNQ / PYNQ-Z1 development plan and pin map for
-the AD9226 capture overlay. The previous board-specific files have been moved
+the AD9226 capture and AD9102 waveform overlay. The previous board-specific files have been moved
 to the history folder.
 
 The immediate validation goal is:
@@ -16,8 +16,56 @@ PYNQ 3.0.1 image
   -> PS can drive 2 RGB LEDs, 6 color channels total
   -> PS can read 4 push buttons
   -> AD9226 capture pins are migrated to the Lemon/PYNQ-Z1 expansion headers
+  -> AD9102 SPI/trigger/reset pins are exposed without removing ADC or board IO
+  -> PS can select sine or SRAM arbitrary waveform, frequency, and amplitude
   -> LED/button/RGB resources remain exposed while the ADC module is present
 ```
+
+## AD9102 Addition
+
+The AD9102 controller is a separate AXI-Lite peripheral:
+
+```text
+ad9102_ctrl_0
+base  = 0x40002000
+range = 0x1000
+```
+
+PL implements SPI mode 0 timing and direct trigger/reset control. PS performs
+the high-level register sequence using `pynq/lemon_pynqz1_ad9102.py`.
+
+The external DAC clock changed from 100 MHz to 180 MHz. The DDS tuning word is:
+
+```text
+FTW = round(fout * 2^24 / 180000000)
+fout_actual = FTW * 180000000 / 2^24
+```
+
+This supports the requested 60 MHz sine output. The standard API is limited to
+72 MHz (40% of DAC clock) for a practical reconstruction margin; an explicit
+advanced option permits values below the 90 MHz Nyquist boundary.
+
+SRAM samples retain the verified STM32 format:
+
+```text
+signed 12-bit two's-complement sample
+SPI data word = (sample << 2) & 0xFFFF
+SRAM address  = 0x6000 + sample_index
+```
+
+Pin assignment supplied for this board:
+
+| Signal | PACKAGE_PIN | Direction |
+|---|---|---|
+| CS_N | U12 | PL output |
+| SDO | V13 | PL input |
+| SDIO | T15 | PL output |
+| SCLK | U17 | PL output |
+| CLK_CMOS_IN | U13 | PL monitor input |
+| TRIGGER_N | T14 | PL output |
+| RESET_N | T16 | PL output |
+
+These pins do not overlap the active AD9226, LED, RGB LED, or button XDC pins.
 
 ## Current Project Baseline
 

@@ -14,6 +14,8 @@ $RecommendedPynqFiles = @(
     "base_add.bit",
     "base_add.hwh",
     "lemon_pynqz1_capture.py",
+    "lemon_pynqz1_ad9102.py",
+    "lemon_pynqz1_adc_dds_test.ipynb",
     "lemon_pynqz1_board_adc_test.ipynb"
 )
 
@@ -104,7 +106,7 @@ function Hwh-AddressRows($Text) {
     $matches = [regex]::Matches($Text, $pattern)
     foreach ($m in $matches) {
         $instance = $m.Groups[3].Value
-        if ($instance -notin @("led_ctrl_0", "adc_capture_0", "axi_dma_0")) { continue }
+        if ($instance -notin @("led_ctrl_0", "adc_capture_0", "ad9102_ctrl_0", "axi_dma_0")) { continue }
         $base = $m.Groups[1].Value
         $high = $m.Groups[2].Value
         $range = "-"
@@ -115,6 +117,7 @@ function Hwh-AddressRows($Text) {
         $access = switch ($instance) {
             "led_ctrl_0" { "MMIO($base, $range)" }
             "adc_capture_0" { "MMIO($base, $range)" }
+            "ad9102_ctrl_0" { "MMIO($base, $range)" }
             "axi_dma_0" { "overlay.axi_dma_0 / DMA MMIO $base" }
             default { "" }
         }
@@ -155,6 +158,13 @@ function Xdc-PinRows($Paths) {
                 '^adc_b_orb$' { "AD9226 B ORB"; break }
                 '^adc_a_data\[(\d+)\]$' { "AD9226 A D$($Matches[1])"; break }
                 '^adc_b_data\[(\d+)\]$' { "AD9226 B D$($Matches[1])"; break }
+                '^ad9102_cs_n$' { "AD9102 CS_N"; break }
+                '^ad9102_sdo$' { "AD9102 SDO"; break }
+                '^ad9102_sdio$' { "AD9102 SDIO"; break }
+                '^ad9102_sclk$' { "AD9102 SCLK"; break }
+                '^ad9102_clk_cmos_in$' { "AD9102 180 MHz clock monitor"; break }
+                '^ad9102_trigger_n$' { "AD9102 TRIGGER_N"; break }
+                '^ad9102_reset_n$' { "AD9102 RESET_N"; break }
                 default { "" }
             }
             $rows += "| $port | $meaning | $pin | $file |"
@@ -179,6 +189,7 @@ $ledPortStatus = if ($hwhText -match "leds_4bits_tri_o") { "PASS" } elseif (Test
 $rgbPortStatus = if ($hwhText -match "rgb_leds_6bits_tri_o") { "PASS" } elseif (Test-Path $HwhFile) { "CHECK" } else { "MISSING" }
 $buttonPortStatus = if ($hwhText -match "btns_4bits_tri_i") { "PASS" } elseif (Test-Path $HwhFile) { "CHECK" } else { "MISSING" }
 $adcCaptureStatus = if ($hwhText -match "adc_capture_0|adc_capture_system") { "PASS" } elseif (Test-Path $HwhFile) { "CHECK" } else { "MISSING" }
+$ad9102Status = if ($hwhText -match "ad9102_ctrl_0|ad9102_ctrl_axi") { "PASS" } elseif (Test-Path $HwhFile) { "CHECK" } else { "MISSING" }
 $dmaStatus = if ($hwhText -match "INSTANCE=`"axi_dma_0`"") { "PASS" } elseif (Test-Path $HwhFile) { "CHECK" } else { "MISSING" }
 $axisFifoStatus = if ($hwhText -match "INSTANCE=`"axis_data_fifo_0`"") { "PASS" } elseif (Test-Path $HwhFile) { "CHECK" } else { "MISSING" }
 $axisToFifoStatus = if (($hwhText -match "adc_capture_0_M_AXIS_SAMPLE_TDATA") -and ($hwhText -match "axis_data_fifo_0")) { "PASS" } elseif (Test-Path $HwhFile) { "CHECK" } else { "MISSING" }
@@ -259,7 +270,8 @@ $xprStatus = if (Test-Path $XprFile) { "FOUND" } else { "MISSING" }
 $addressRows = Hwh-AddressRows $hwhText
 $pinRows = Xdc-PinRows @(
     (Join-Path $Root "constraints\lemon_pynqz1_board_io.xdc"),
-    (Join-Path $Root "constraints\lemon_pynqz1_adc_system.xdc")
+    (Join-Path $Root "constraints\lemon_pynqz1_adc_system.xdc"),
+    (Join-Path $Root "constraints\lemon_pynqz1_ad9102.xdc")
 )
 
 $ledRegisterRows = @"
@@ -302,6 +314,20 @@ $dmaRegisterRows = @"
 | S2MM_DMASR | 0x34 | DMA S2MM status register used by debug code |
 "@
 
+$ad9102RegisterRows = @"
+| CTRL | 0x00 | bit0 start SPI transaction, bit1 read, bit2 clear done |
+| STATUS | 0x04 | busy, done, read, trigger/reset and clock-pin sample |
+| SPI_ADDR | 0x08 | AD9102 15-bit SPI register/SRAM address |
+| SPI_WDATA | 0x0C | 16-bit write payload |
+| SPI_RDATA | 0x10 | 16-bit read payload |
+| SPI_DIV | 0x14 | SCLK half-period minus one in 125 MHz FCLK cycles |
+| GPIO_CTRL | 0x18 | bit0 TRIGGER_N, bit1 RESET_N |
+| DAC_CLK_HZ | 0x1C | fixed readback 180000000 |
+| VERSION | 0x20 | expected 0xAD910201 |
+| COMMAND_COUNT | 0x24 | completed/started SPI command debug counter |
+| ERROR_COUNT | 0x28 | command-while-busy error counter |
+"@
+
 $now = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
 $content = @"
 # Vivado Overlay Report
@@ -320,6 +346,7 @@ Generated: **$now**
 | 2 RGB LED output port | $(Status-Badge $rgbPortStatus) | rgb_leds_6bits_tri_o is exported to board pins |
 | 4 button input port | $(Status-Badge $buttonPortStatus) | btns_4bits_tri_i is exported to board pins |
 | AD9226 capture controller in HWH | $(Status-Badge $adcCaptureStatus) | PS can discover adc_capture_0 from hwh |
+| AD9102 SPI controller in HWH | $(Status-Badge $ad9102Status) | PS can discover ad9102_ctrl_0 from hwh |
 | AXI DMA S2MM in HWH | $(Status-Badge $dmaStatus) | PS can discover axi_dma_0 and use recvchannel |
 | AXI DMA in BD script | $(Status-Badge $dmaBdStatus) | build.tcl creates axi_dma_0 and connects S2MM stream |
 | AXIS Data FIFO in HWH | $(Status-Badge $axisFifoStatus) | Xilinx FIFO buffers capture stream before DMA |
@@ -348,7 +375,7 @@ $addressRows
 
 Recommended direct bindings:
 
-$(Code-Block "led_ip = MMIO(0x40000000, 0x1000)`nadc_ip = MMIO(0x40001000, 0x1000)`ndma = overlay.axi_dma_0" "python")
+$(Code-Block "led_ip = MMIO(0x40000000, 0x1000)`nadc_ip = MMIO(0x40001000, 0x1000)`ndds_ip = MMIO(0x40002000, 0x1000)`ndma = overlay.axi_dma_0" "python")
 
 ## 3. Register Offsets Used By Notebook
 
@@ -363,6 +390,12 @@ ADC capture controller at ``0x40001000``:
 | Register | Offset | Meaning |
 |---|---:|---|
 $adcRegisterRows
+
+AD9102 controller at ``0x40002000``:
+
+| Register | Offset | Meaning |
+|---|---:|---|
+$ad9102RegisterRows
 
 AXI DMA at ``0x40400000``:
 

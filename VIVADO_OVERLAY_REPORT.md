@@ -1,6 +1,6 @@
 ﻿# Vivado Overlay Report
 
-Generated: **2026-06-27 03:56:51**
+Generated: **2026-06-28 22:45:43**
 
 ## 1. Build Status
 
@@ -14,6 +14,7 @@ Generated: **2026-06-27 03:56:51**
 | 2 RGB LED output port | <span style="color:#008000;font-weight:bold;font-size:16px;">PASS</span> | rgb_leds_6bits_tri_o is exported to board pins |
 | 4 button input port | <span style="color:#008000;font-weight:bold;font-size:16px;">PASS</span> | btns_4bits_tri_i is exported to board pins |
 | AD9226 capture controller in HWH | <span style="color:#008000;font-weight:bold;font-size:16px;">PASS</span> | PS can discover adc_capture_0 from hwh |
+| AD9102 SPI controller in HWH | <span style="color:#008000;font-weight:bold;font-size:16px;">PASS</span> | PS can discover ad9102_ctrl_0 from hwh |
 | AXI DMA S2MM in HWH | <span style="color:#008000;font-weight:bold;font-size:16px;">PASS</span> | PS can discover axi_dma_0 and use recvchannel |
 | AXI DMA in BD script | <span style="color:#008000;font-weight:bold;font-size:16px;">PASS</span> | build.tcl creates axi_dma_0 and connects S2MM stream |
 | AXIS Data FIFO in HWH | <span style="color:#008000;font-weight:bold;font-size:16px;">PASS</span> | Xilinx FIFO buffers capture stream before DMA |
@@ -40,6 +41,7 @@ fixed MMIO addresses directly instead of guessing through overlay attributes.
 |---|---:|---:|---:|---|---|
 | led_ctrl_0 | 0x40000000 | 0x40000FFF | 0x1000 | S_AXI | MMIO(0x40000000, 0x1000) |
 | adc_capture_0 | 0x40001000 | 0x40001FFF | 0x1000 | S_AXI | MMIO(0x40001000, 0x1000) |
+| ad9102_ctrl_0 | 0x40002000 | 0x40002FFF | 0x1000 | S_AXI | MMIO(0x40002000, 0x1000) |
 | axi_dma_0 | 0x40400000 | 0x4040FFFF | 0x10000 | S_AXI_LITE | overlay.axi_dma_0 / DMA MMIO 0x40400000 |
 
 Recommended direct bindings:
@@ -47,6 +49,7 @@ Recommended direct bindings:
 ~~~text
 led_ip = MMIO(0x40000000, 0x1000)
 adc_ip = MMIO(0x40001000, 0x1000)
+dds_ip = MMIO(0x40002000, 0x1000)
 dma = overlay.axi_dma_0
 ~~~
 
@@ -91,6 +94,22 @@ ADC capture controller at `0x40001000`:
 | DROPPED_SAMPLE_COUNT | 0x64 | expected 0 |
 | CAPTURE_DONE_LATCHED | 0x68 | latched done flag |
 | CORE_DONE | 0x6C | capture core done flag |
+
+AD9102 controller at `0x40002000`:
+
+| Register | Offset | Meaning |
+|---|---:|---|
+| CTRL | 0x00 | bit0 start SPI transaction, bit1 read, bit2 clear done |
+| STATUS | 0x04 | busy, done, read, trigger/reset and clock-pin sample |
+| SPI_ADDR | 0x08 | AD9102 15-bit SPI register/SRAM address |
+| SPI_WDATA | 0x0C | 16-bit write payload |
+| SPI_RDATA | 0x10 | 16-bit read payload |
+| SPI_DIV | 0x14 | SCLK half-period minus one in 125 MHz FCLK cycles |
+| GPIO_CTRL | 0x18 | bit0 TRIGGER_N, bit1 RESET_N |
+| DAC_CLK_HZ | 0x1C | fixed readback 180000000 |
+| VERSION | 0x20 | expected 0xAD910201 |
+| COMMAND_COUNT | 0x24 | completed/started SPI command debug counter |
+| ERROR_COUNT | 0x28 | command-while-busy error counter |
 
 AXI DMA at `0x40400000`:
 
@@ -147,6 +166,13 @@ the bitstream exposes.
 | adc_b_data[10] | AD9226 B D10 | F20 | lemon_pynqz1_adc_system.xdc |
 | adc_b_data[11] | AD9226 B D11 | B19 | lemon_pynqz1_adc_system.xdc |
 | adc_b_orb | AD9226 B ORB | A20 | lemon_pynqz1_adc_system.xdc |
+| ad9102_cs_n | AD9102 CS_N | U12 | lemon_pynqz1_ad9102.xdc |
+| ad9102_sdo | AD9102 SDO | V13 | lemon_pynqz1_ad9102.xdc |
+| ad9102_sdio | AD9102 SDIO | T15 | lemon_pynqz1_ad9102.xdc |
+| ad9102_sclk | AD9102 SCLK | U17 | lemon_pynqz1_ad9102.xdc |
+| ad9102_clk_cmos_in | AD9102 180 MHz clock monitor | U13 | lemon_pynqz1_ad9102.xdc |
+| ad9102_trigger_n | AD9102 TRIGGER_N | T14 | lemon_pynqz1_ad9102.xdc |
+| ad9102_reset_n | AD9102 RESET_N | T16 | lemon_pynqz1_ad9102.xdc |
 
 ## 5. Recommended DMA Files For PYNQ
 
@@ -154,18 +180,22 @@ These are the files to copy when validating the current DMA capture path.
 
 | File | Status | Bytes | Last Write Time |
 |---|---|---:|---|
-| base_add.bit | <span style="color:#008000;font-weight:bold;">FOUND</span> | 4045674 | 2026-06-27 03:41:46 |
-| base_add.hwh | <span style="color:#008000;font-weight:bold;">FOUND</span> | 335664 | 2026-06-27 03:36:58 |
+| base_add.bit | <span style="color:#008000;font-weight:bold;">FOUND</span> | 4045674 | 2026-06-28 22:43:47 |
+| base_add.hwh | <span style="color:#008000;font-weight:bold;">FOUND</span> | 357140 | 2026-06-28 22:38:51 |
 | lemon_pynqz1_capture.py | <span style="color:#008000;font-weight:bold;">FOUND</span> | 6721 | 2026-06-27 03:41:42 |
+| lemon_pynqz1_ad9102.py | <span style="color:#008000;font-weight:bold;">FOUND</span> | 10742 | 2026-06-28 22:45:32 |
+| lemon_pynqz1_adc_dds_test.ipynb | <span style="color:#008000;font-weight:bold;">FOUND</span> | 4066 | 2026-06-28 22:45:22 |
 | lemon_pynqz1_board_adc_test.ipynb | <span style="color:#008000;font-weight:bold;">FOUND</span> | 14289 | 2026-06-27 03:52:34 |
 
 ## 6. Board Files Present
 
 | File | Status | Bytes | Last Write Time |
 |---|---|---:|---|
-| base_add.bit | <span style="color:#008000;font-weight:bold;">FOUND</span> | 4045674 | 2026-06-27 03:41:46 |
-| base_add.hwh | <span style="color:#008000;font-weight:bold;">FOUND</span> | 335664 | 2026-06-27 03:36:58 |
+| base_add.bit | <span style="color:#008000;font-weight:bold;">FOUND</span> | 4045674 | 2026-06-28 22:43:47 |
+| base_add.hwh | <span style="color:#008000;font-weight:bold;">FOUND</span> | 357140 | 2026-06-28 22:38:51 |
+| lemon_pynqz1_adc_dds_test.ipynb | <span style="color:#008000;font-weight:bold;">FOUND</span> | 4066 | 2026-06-28 22:45:22 |
 | lemon_pynqz1_board_adc_test.ipynb | <span style="color:#008000;font-weight:bold;">FOUND</span> | 14289 | 2026-06-27 03:52:34 |
+| lemon_pynqz1_ad9102.py | <span style="color:#008000;font-weight:bold;">FOUND</span> | 10742 | 2026-06-28 22:45:32 |
 | lemon_pynqz1_capture.py | <span style="color:#008000;font-weight:bold;">FOUND</span> | 6721 | 2026-06-27 03:41:42 |
 
 Legacy board notebooks have been moved to the history folder. Use the Lemon/PYNQ-Z1 notebook for board validation.
@@ -180,7 +210,7 @@ G:\VSCODE_Save_Files\PYNQ_Z2Code\PYNQZ2_PSPL_Base\build\vivado\base_add_overlay.
 
 | WNS ns | TNS ns | WHS ns | THS ns | Result |
 |---:|---:|---:|---:|---|
-| **0.847** | **0.000** | **0.015** | **0.000** | <span style="color:#008000;font-weight:bold;font-size:16px;">PASS</span> |
+| **0.797** | **0.000** | **0.028** | **0.000** | <span style="color:#008000;font-weight:bold;font-size:16px;">PASS</span> |
 
 Good sign:
 
@@ -201,7 +231,7 @@ G:\VSCODE_Save_Files\PYNQ_Z2Code\PYNQZ2_PSPL_Base\build\vivado\base_add_overlay.
 Key lines:
 
 ~~~text
-| Slice LUTs                 | 2390 |     0 |          0 |     53200 |  4.49 |
+| Slice LUTs                 | 2601 |     0 |          0 |     53200 |  4.89 |
 | Block RAM Tile    |   20 |     0 |          0 |       140 | 14.29 |
 * Note: Each Block RAM Tile only has one FIFO logic available and therefore can accommodate only one FIFO36E1 or one FIFO18E1. However, if a FIFO18E1 occupies a Block RAM Tile, that tile can still accommodate a RAMB18E1
 | DSPs      |    0 |     0 |          0 |       220 |  0.00 |
@@ -223,6 +253,8 @@ If this report shows **PASS**, upload these files to PYNQ:
 pynq/base_add.bit
 pynq/base_add.hwh
 pynq/lemon_pynqz1_capture.py
+pynq/lemon_pynqz1_ad9102.py
+pynq/lemon_pynqz1_adc_dds_test.ipynb
 pynq/lemon_pynqz1_board_adc_test.ipynb
 ~~~
 

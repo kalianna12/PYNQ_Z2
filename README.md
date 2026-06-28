@@ -1,7 +1,7 @@
-# Lemon PYNQ-Z1 AD9226 Overlay
+# Lemon PYNQ-Z1 AD9226 + AD9102 Overlay
 
-This workspace is the cleaned Lemon/PYNQ-Z1 development tree for generic AD9226
-capture and board IO validation.
+This workspace is the cleaned Lemon/PYNQ-Z1 development tree for AD9226
+capture, AD9102 waveform generation, and board IO validation.
 
 The current target is:
 
@@ -10,7 +10,7 @@ Board      : Lemon ZYNQ / PYNQ-Z1-compatible board
 FPGA       : XC7Z020 CLG400
 Vivado     : 2022.1
 PYNQ image : 3.0.1
-Overlay    : PS-controlled LED/RGB/button test + AD9226 capture + AXI DMA
+Overlay    : board IO + AD9226 capture/DMA + AD9102 SPI control
 ```
 
 ## Active Files
@@ -25,8 +25,11 @@ constraints/lemon_pynqz1_board_io.xdc
 constraints/lemon_pynqz1_adc_system.xdc
   Lemon/PYNQ-Z1 AD9226 expansion-header pins.
 
+constraints/lemon_pynqz1_ad9102.xdc
+  AD9102 SPI, trigger, reset, and 180 MHz clock-monitor pins.
+
 rtl/src/
-  Custom AXI-Lite LED/RGB/button controller and AD9226 capture RTL.
+  AXI-Lite board IO, AD9226 capture, and AD9102 SPI controller RTL.
 
 pynq/lemon_pynqz1_capture.py
   Shared Lemon/PYNQ-Z1 overlay and DMA capture helpers.
@@ -34,6 +37,13 @@ pynq/lemon_pynqz1_capture.py
 pynq/lemon_pynqz1_board_adc_test.ipynb
   Generic board validation notebook: overlay load, LED/RGB/button test,
   fake FIFO/DMA, and real ADC capture.
+
+pynq/lemon_pynqz1_ad9102.py
+  AD9102 driver using fixed MMIO at 0x40002000. It preserves the verified
+  STM32 register order and signed SRAM sample format.
+
+pynq/lemon_pynqz1_adc_dds_test.ipynb
+  AD9102 sine/60 MHz/arbitrary-wave tests plus simultaneous real ADC capture.
 
 pynq/base_add.bit
 pynq/base_add.hwh
@@ -72,6 +82,8 @@ pynq/base_add.bit
 pynq/base_add.hwh
 pynq/lemon_pynqz1_capture.py
 pynq/lemon_pynqz1_board_adc_test.ipynb
+pynq/lemon_pynqz1_ad9102.py
+pynq/lemon_pynqz1_adc_dds_test.ipynb
 ```
 
 Then run the notebook cells in order:
@@ -86,6 +98,48 @@ Then run the notebook cells in order:
 Cell 2 has been verified on the board with direct XDC/register mapping. Keep
 that direct test style for future notebooks; do not add software remapping for
 LEDs, RGB LEDs, or buttons.
+
+For DDS and simultaneous ADC/DDS validation, run:
+
+```text
+pynq/lemon_pynqz1_adc_dds_test.ipynb
+```
+
+## AD9102
+
+The fixed PS address is:
+
+```text
+ad9102_ctrl_0 -> MMIO(0x40002000, 0x1000)
+```
+
+The module clock is 180 MHz. DDS frequency uses:
+
+```text
+FTW = round(frequency_hz * 2^24 / 180000000)
+```
+
+The normal Python API allows 1 Hz through 72 MHz. Frequencies above 72 MHz and
+below the 90 MHz Nyquist boundary require the explicit advanced flag.
+
+For SRAM arbitrary waveforms, `configure_arbitrary(samples, freq_hz,
+amplitude)` resamples one source period to `round(180 MHz / freq_hz)` SRAM
+points. Therefore the achievable frequency is quantized by the integer sample
+count; the method returns the actual value.
+
+```text
+CS_N         U12
+SDO          V13
+SDIO         T15
+SCLK         U17
+CLK_CMOS_IN  U13
+TRIGGER_N    T14
+RESET_N      T16
+```
+
+`CLK_CMOS_IN` is currently treated as a monitor input to PL; the 180 MHz
+oscillator clocks the AD9102 directly. Do not drive this net from PL unless the
+module schematic proves that the header pin is an external clock input.
 
 ## Current Board Pin Notes
 

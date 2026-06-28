@@ -11,6 +11,7 @@ set board_repo_dir [file join $root_dir board_files]
 set external_board_repo_dir [file normalize "G:/FIREFOX下载"]
 set rtl_src [list \
     [file join $root_dir rtl src led_ctrl_axi.v] \
+    [file join $root_dir rtl src ad9102_ctrl_axi.v] \
     [file join $root_dir rtl src adc_ctrl_axi.v] \
     [file join $root_dir rtl src ad9226_capture_core.v] \
     [file join $root_dir rtl src adc_sample_fifo.v] \
@@ -18,6 +19,7 @@ set rtl_src [list \
 ]
 set board_io_xdc [file join $root_dir constraints lemon_pynqz1_board_io.xdc]
 set adc_xdc [file join $root_dir constraints lemon_pynqz1_adc_system.xdc]
+set ad9102_xdc [file join $root_dir constraints lemon_pynqz1_ad9102.xdc]
 
 file mkdir $build_dir
 file mkdir $pynq_dir
@@ -41,6 +43,11 @@ if {[file exists $adc_xdc]} {
     add_files -fileset constrs_1 -norecurse $adc_xdc
 } else {
     puts "WARNING: ADC XDC not found: $adc_xdc"
+}
+if {[file exists $ad9102_xdc]} {
+    add_files -fileset constrs_1 -norecurse $ad9102_xdc
+} else {
+    puts "WARNING: AD9102 XDC not found: $ad9102_xdc"
 }
 update_ip_catalog
 
@@ -123,6 +130,48 @@ foreach ext_pair {
     }
 }
 
+create_bd_cell -type module -reference ad9102_ctrl_axi ad9102_ctrl_0
+
+set ad9102_ctrl_pin [get_bd_intf_pins -quiet ad9102_ctrl_0/S_AXI]
+if {[llength $ad9102_ctrl_pin] == 0} {
+    puts "ERROR: Could not find AXI-Lite interface S_AXI on ad9102_ctrl_0"
+    exit 1
+}
+
+apply_bd_automation -rule xilinx.com:bd_rule:axi4 \
+    -config {Master "/processing_system7_0/M_AXI_GP0" Clk "Auto"} \
+    $ad9102_ctrl_pin
+
+foreach ad9102_pin_name {
+    ad9102_cs_n
+    ad9102_sdo
+    ad9102_sdio
+    ad9102_sclk
+    ad9102_clk_cmos_in
+    ad9102_trigger_n
+    ad9102_reset_n
+} {
+    set ad9102_pin [get_bd_pins -quiet ad9102_ctrl_0/$ad9102_pin_name]
+    if {[llength $ad9102_pin] != 0} {
+        make_bd_pins_external $ad9102_pin
+    }
+}
+
+foreach ad9102_pin_name {
+    ad9102_cs_n
+    ad9102_sdo
+    ad9102_sdio
+    ad9102_sclk
+    ad9102_clk_cmos_in
+    ad9102_trigger_n
+    ad9102_reset_n
+} {
+    set generated_port [get_bd_ports -quiet "${ad9102_pin_name}_0"]
+    if {[llength $generated_port] != 0} {
+        set_property name $ad9102_pin_name $generated_port
+    }
+}
+
 set adc_axis_pin [get_bd_intf_pins -quiet adc_capture_0/M_AXIS_SAMPLE]
 if {[llength $adc_axis_pin] == 0} {
     puts "ERROR: Could not find AXI-Stream output interface M_AXIS_SAMPLE on adc_capture_0"
@@ -196,6 +245,7 @@ if {[llength $fclk0_pin] == 0} {
 
 foreach clk_target {
     led_ctrl_0/S_AXI_ACLK
+    ad9102_ctrl_0/S_AXI_ACLK
     adc_capture_0/S_AXI_ACLK
     axi_dma_0/s_axi_lite_aclk
     axi_dma_0/m_axi_s2mm_aclk
@@ -230,6 +280,7 @@ set resetn_pin [lindex $resetn_pin 0]
 
 foreach rst_target {
     led_ctrl_0/S_AXI_ARESETN
+    ad9102_ctrl_0/S_AXI_ARESETN
     adc_capture_0/S_AXI_ARESETN
     axi_dma_0/axi_resetn
     axis_data_fifo_0/s_axis_aresetn
