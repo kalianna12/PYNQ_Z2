@@ -284,9 +284,9 @@ $adcRegisterRows = @"
 | CTRL | 0x00 | bit0 enable, bit1 start pulse, bit2 clear/reset pulse |
 | STATUS | 0x04 | busy/done/fatal status |
 | SAMPLE_COUNT | 0x08 | number of 32-bit sample words sent to DMA |
-| ADC_HALF | 0x0C | ADC clock half-period in 125 MHz FCLK cycles |
-| SAMPLE_DELAY | 0x10 | ADC data sample delay in FCLK cycles |
-| DECIMATION | 0x14 | save one sample per N ADC cycles |
+| ADC_HALF | 0x0C | legacy compatibility register; physical ADC clock is fixed at 62.5 MHz |
+| SAMPLE_DELAY | 0x10 | legacy compatibility register; MMCM capture phase is fixed in RTL |
+| DECIMATION | 0x14 | save one sample per N conversions; saved Fs = 62.5 MSPS / N |
 | CHANNEL_MASK | 0x18 | bit0 channel A, bit1 channel B |
 | CAPTURE_MODE | 0x1C | 1 real ADC, 2 fake stream |
 | TRIGGER_MODE | 0x20 | current generic tests use 0 |
@@ -297,7 +297,7 @@ $adcRegisterRows = @"
 | SAMPLE_COUNTER | 0x34 | ADC sample counter |
 | FIFO_LEVEL | 0x38 | internal FIFO level |
 | ERROR_FLAGS | 0x3C | write all ones to clear warning/error flags |
-| VERSION | 0x44 | RTL version/debug value |
+| VERSION | 0x44 | ADC RTL version; fixed-clock design returns 0x00020000 |
 | SAVED_COUNTER | 0x48 | saved sample counter |
 | LAST_AXIS_WORD | 0x4C | last packed AXIS word |
 | DEBUG_STATE | 0x50 | capture FSM debug state |

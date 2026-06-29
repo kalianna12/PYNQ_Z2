@@ -2,6 +2,9 @@
 
 module tb_ad9226_capture_chain;
     reg clk = 1'b0;
+    reg adc_clk_62m5 = 1'b0;
+    reg adc_capture_clk_62m5 = 1'b0;
+    reg adc_clock_locked = 1'b0;
     reg resetn = 1'b0;
 
     reg enable = 1'b0;
@@ -80,6 +83,9 @@ module tb_ad9226_capture_chain;
         .SAMPLE_DELAY_MAX(31)
     ) capture_i (
         .clk_125m(clk),
+        .adc_clk_62m5(adc_clk_62m5),
+        .adc_capture_clk_62m5(adc_capture_clk_62m5),
+        .adc_clock_locked(adc_clock_locked),
         .resetn(resetn),
         .enable(enable),
         .start_pulse(start_pulse),
@@ -153,6 +159,12 @@ module tb_ad9226_capture_chain;
     );
 
     always #4 clk = ~clk;
+    always #8 adc_clk_62m5 = ~adc_clk_62m5;
+
+    initial begin
+        #11.5;
+        forever #8 adc_capture_clk_62m5 = ~adc_capture_clk_62m5;
+    end
 
     always @(posedge clk) begin
         adc_a_data <= adc_a_data + 12'd3;
@@ -213,6 +225,7 @@ module tb_ad9226_capture_chain;
     initial begin
         repeat (8) @(posedge clk);
         resetn <= 1'b1;
+        adc_clock_locked <= 1'b1;
         repeat (4) @(posedge clk);
 
         enable <= 1'b1;

@@ -1,6 +1,6 @@
 ﻿# Vivado Overlay Report
 
-Generated: **2026-06-28 22:45:43**
+Generated: **2026-06-29 02:30:24**
 
 ## 1. Build Status
 
@@ -70,9 +70,9 @@ ADC capture controller at `0x40001000`:
 | CTRL | 0x00 | bit0 enable, bit1 start pulse, bit2 clear/reset pulse |
 | STATUS | 0x04 | busy/done/fatal status |
 | SAMPLE_COUNT | 0x08 | number of 32-bit sample words sent to DMA |
-| ADC_HALF | 0x0C | ADC clock half-period in 125 MHz FCLK cycles |
-| SAMPLE_DELAY | 0x10 | ADC data sample delay in FCLK cycles |
-| DECIMATION | 0x14 | save one sample per N ADC cycles |
+| ADC_HALF | 0x0C | legacy compatibility register; physical ADC clock is fixed at 62.5 MHz |
+| SAMPLE_DELAY | 0x10 | legacy compatibility register; MMCM capture phase is fixed in RTL |
+| DECIMATION | 0x14 | save one sample per N conversions; saved Fs = 62.5 MSPS / N |
 | CHANNEL_MASK | 0x18 | bit0 channel A, bit1 channel B |
 | CAPTURE_MODE | 0x1C | 1 real ADC, 2 fake stream |
 | TRIGGER_MODE | 0x20 | current generic tests use 0 |
@@ -83,7 +83,7 @@ ADC capture controller at `0x40001000`:
 | SAMPLE_COUNTER | 0x34 | ADC sample counter |
 | FIFO_LEVEL | 0x38 | internal FIFO level |
 | ERROR_FLAGS | 0x3C | write all ones to clear warning/error flags |
-| VERSION | 0x44 | RTL version/debug value |
+| VERSION | 0x44 | ADC RTL version; fixed-clock design returns 0x00020000 |
 | SAVED_COUNTER | 0x48 | saved sample counter |
 | LAST_AXIS_WORD | 0x4C | last packed AXIS word |
 | DEBUG_STATE | 0x50 | capture FSM debug state |
@@ -180,23 +180,23 @@ These are the files to copy when validating the current DMA capture path.
 
 | File | Status | Bytes | Last Write Time |
 |---|---|---:|---|
-| base_add.bit | <span style="color:#008000;font-weight:bold;">FOUND</span> | 4045674 | 2026-06-28 22:43:47 |
-| base_add.hwh | <span style="color:#008000;font-weight:bold;">FOUND</span> | 357140 | 2026-06-28 22:38:51 |
-| lemon_pynqz1_capture.py | <span style="color:#008000;font-weight:bold;">FOUND</span> | 6721 | 2026-06-27 03:41:42 |
+| base_add.bit | <span style="color:#008000;font-weight:bold;">FOUND</span> | 4045674 | 2026-06-29 02:30:22 |
+| base_add.hwh | <span style="color:#008000;font-weight:bold;">FOUND</span> | 394638 | 2026-06-29 02:25:25 |
+| lemon_pynqz1_capture.py | <span style="color:#008000;font-weight:bold;">FOUND</span> | 7022 | 2026-06-29 02:09:52 |
 | lemon_pynqz1_ad9102.py | <span style="color:#008000;font-weight:bold;">FOUND</span> | 10742 | 2026-06-28 22:45:32 |
-| lemon_pynqz1_adc_dds_test.ipynb | <span style="color:#008000;font-weight:bold;">FOUND</span> | 4066 | 2026-06-28 22:45:22 |
-| lemon_pynqz1_board_adc_test.ipynb | <span style="color:#008000;font-weight:bold;">FOUND</span> | 14289 | 2026-06-27 03:52:34 |
+| lemon_pynqz1_adc_dds_test.ipynb | <span style="color:#008000;font-weight:bold;">FOUND</span> | 4066 | 2026-06-29 01:26:06 |
+| lemon_pynqz1_board_adc_test.ipynb | <span style="color:#008000;font-weight:bold;">FOUND</span> | 14464 | 2026-06-29 02:10:13 |
 
 ## 6. Board Files Present
 
 | File | Status | Bytes | Last Write Time |
 |---|---|---:|---|
-| base_add.bit | <span style="color:#008000;font-weight:bold;">FOUND</span> | 4045674 | 2026-06-28 22:43:47 |
-| base_add.hwh | <span style="color:#008000;font-weight:bold;">FOUND</span> | 357140 | 2026-06-28 22:38:51 |
-| lemon_pynqz1_adc_dds_test.ipynb | <span style="color:#008000;font-weight:bold;">FOUND</span> | 4066 | 2026-06-28 22:45:22 |
-| lemon_pynqz1_board_adc_test.ipynb | <span style="color:#008000;font-weight:bold;">FOUND</span> | 14289 | 2026-06-27 03:52:34 |
+| base_add.bit | <span style="color:#008000;font-weight:bold;">FOUND</span> | 4045674 | 2026-06-29 02:30:22 |
+| base_add.hwh | <span style="color:#008000;font-weight:bold;">FOUND</span> | 394638 | 2026-06-29 02:25:25 |
+| lemon_pynqz1_adc_dds_test.ipynb | <span style="color:#008000;font-weight:bold;">FOUND</span> | 4066 | 2026-06-29 01:26:06 |
+| lemon_pynqz1_board_adc_test.ipynb | <span style="color:#008000;font-weight:bold;">FOUND</span> | 14464 | 2026-06-29 02:10:13 |
 | lemon_pynqz1_ad9102.py | <span style="color:#008000;font-weight:bold;">FOUND</span> | 10742 | 2026-06-28 22:45:32 |
-| lemon_pynqz1_capture.py | <span style="color:#008000;font-weight:bold;">FOUND</span> | 6721 | 2026-06-27 03:41:42 |
+| lemon_pynqz1_capture.py | <span style="color:#008000;font-weight:bold;">FOUND</span> | 7022 | 2026-06-29 02:09:52 |
 
 Legacy board notebooks have been moved to the history folder. Use the Lemon/PYNQ-Z1 notebook for board validation.
 
@@ -210,7 +210,7 @@ G:\VSCODE_Save_Files\PYNQ_Z2Code\PYNQZ2_PSPL_Base\build\vivado\base_add_overlay.
 
 | WNS ns | TNS ns | WHS ns | THS ns | Result |
 |---:|---:|---:|---:|---|
-| **0.797** | **0.000** | **0.028** | **0.000** | <span style="color:#008000;font-weight:bold;font-size:16px;">PASS</span> |
+| **0.631** | **0.000** | **0.014** | **0.000** | <span style="color:#008000;font-weight:bold;font-size:16px;">PASS</span> |
 
 Good sign:
 
@@ -231,7 +231,7 @@ G:\VSCODE_Save_Files\PYNQ_Z2Code\PYNQZ2_PSPL_Base\build\vivado\base_add_overlay.
 Key lines:
 
 ~~~text
-| Slice LUTs                 | 2601 |     0 |          0 |     53200 |  4.89 |
+| Slice LUTs                 | 2556 |     0 |          0 |     53200 |  4.80 |
 | Block RAM Tile    |   20 |     0 |          0 |       140 | 14.29 |
 * Note: Each Block RAM Tile only has one FIFO logic available and therefore can accommodate only one FIFO36E1 or one FIFO18E1. However, if a FIFO18E1 occupies a Block RAM Tile, that tile can still accommodate a RAMB18E1
 | DSPs      |    0 |     0 |          0 |       220 |  0.00 |

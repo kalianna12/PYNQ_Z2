@@ -73,6 +73,24 @@ VIVADO_OVERLAY_REPORT.md
 The report includes the PYNQ MMIO address map, register offsets, and exposed
 PL pin map. Use it as the handoff sheet before editing notebooks.
 
+## Fixed ADC Sampling
+
+Both AD9226 channels run from the same MMCM-generated 62.5 MHz clock. The two
+clock outputs are launched in phase, and both 12-bit buses are captured in
+input IOB registers on a separately phased MMCM edge. The XDC models the
+AD9226 3.5 ns to 7.0 ns output delay and checks all 24 data inputs.
+
+`ADC_HALF` and `SAMPLE_DELAY` remain for register compatibility, but no longer
+change the physical ADC clock or capture phase. Use `DECIMATION=N` to save one
+sample for every N physical conversions:
+
+```text
+physical conversion rate = 62.5 MSPS
+saved sample rate         = 62.5 MSPS / DECIMATION
+```
+
+For example, `DECIMATION=3125` gives 20 kSPS for viewing a 1 kHz waveform.
+
 ## PYNQ Test
 
 Copy or upload these files to the PYNQ Jupyter folder:

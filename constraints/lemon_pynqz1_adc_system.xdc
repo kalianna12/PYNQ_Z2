@@ -99,3 +99,40 @@ set_property IOSTANDARD LVCMOS33 [get_ports {adc_b_data[11]}]
 
 set_property PACKAGE_PIN A20 [get_ports adc_b_orb]
 set_property IOSTANDARD LVCMOS33 [get_ports adc_b_orb]
+
+## Source-synchronous timing for the fixed 62.5 MSPS mode.
+## AD9226 Rev.B specifies 3.5 ns minimum and 7.0 ns maximum output delay.
+## The extra 0.5 ns on each side allows modest header/PCB clock-data skew.
+set adc_mmcm_clk_pin [get_pins -quiet -hier -filter {
+    NAME =~ *adc_clock_wizard_0*clkout1_buf/O
+}]
+
+create_generated_clock -name adc_a_launch_clk \
+    -source $adc_mmcm_clk_pin \
+    -divide_by 1 \
+    [get_ports adc_a_clk]
+create_generated_clock -name adc_b_launch_clk \
+    -source $adc_mmcm_clk_pin \
+    -divide_by 1 \
+    [get_ports adc_b_clk]
+
+set_input_delay -clock [get_clocks adc_a_launch_clk] -min 3.0 \
+    [get_ports {adc_a_data[*]}]
+set_input_delay -clock [get_clocks adc_a_launch_clk] -max 7.5 \
+    [get_ports {adc_a_data[*]}]
+set_input_delay -clock [get_clocks adc_b_launch_clk] -min 3.0 \
+    [get_ports {adc_b_data[*]}]
+set_input_delay -clock [get_clocks adc_b_launch_clk] -max 7.5 \
+    [get_ports {adc_b_data[*]}]
+
+## The selected capture edge is the falling edge at 19.5 ns. Vivado represents
+## the same periodic edge as 3.5 ns, so explicitly select the following cycle.
+set_multicycle_path 2 -setup -from [get_clocks adc_a_launch_clk] \
+    -to [get_pins -hier -filter {NAME =~ */adc_a_capture_reg*/D}]
+set_multicycle_path 2 -setup -from [get_clocks adc_b_launch_clk] \
+    -to [get_pins -hier -filter {NAME =~ */adc_b_capture_reg*/D}]
+
+## ORA/ORB are rail-overflow status inputs, not sample payload. Their first
+## 125 MHz registers are explicit metastability synchronizers.
+set_false_path -from [get_ports {adc_a_ora adc_b_orb}] \
+    -to [get_pins -hier -filter {NAME =~ */adc_*_or?_d0_reg/D}]

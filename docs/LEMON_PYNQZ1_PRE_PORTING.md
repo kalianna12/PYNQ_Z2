@@ -447,6 +447,7 @@ Current address map:
 ```text
 led_ctrl_0    base 0x40000000, high 0x40000FFF, range 0x1000
 adc_capture_0 base 0x40001000, high 0x40001FFF, range 0x1000
+ad9102_ctrl_0 base 0x40002000, high 0x40002FFF, range 0x1000
 axi_dma_0     base 0x40400000, high 0x4040FFFF, range 0x10000
 ```
 
@@ -520,6 +521,21 @@ DROPPED_SAMPLE_COUNT  0x64
 CAPTURE_DONE_LATCHED  0x68
 CORE_DONE             0x6C
 ```
+
+The current RTL uses fixed dual-channel 62.5 MSPS physical sampling:
+
+```text
+ADC A clock = 62.5 MHz
+ADC B clock = 62.5 MHz
+clock phase = identical at the two FPGA outputs
+saved rate  = 62.5 MSPS / DECIMATION
+```
+
+`ADC_HALF` and `SAMPLE_DELAY` are legacy-compatible registers and do not alter
+the physical clock or capture edge. Low-frequency tests use `DECIMATION`; for
+example, `3125` produces a 20 kSPS saved stream for a 1 kHz input. The ADC XDC
+models the AD9226 output-delay window and selects the following-cycle capture
+edge explicitly.
 
 ## PL Pin Conflict Rules
 
@@ -653,7 +669,7 @@ flow and explicitly configure PS7 according to the Lemon/PYNQ-Z1 base design.
 4. Write LED/RGB AXI registers from Jupyter and verify all 10 output bits.
 5. Read button AXI registers from Jupyter and verify all 4 input bits.
 6. Test `capture_mode = 2` fake stream through DMA.
-7. Test real ADC capture at a slow/known-good rate.
+7. Test real ADC capture at fixed 62.5 MSPS, using decimation for a lower saved rate.
 8. Use the generic ADC notebook/helper as the continuing bring-up path.
 
 ## Notes for the User's Header Table

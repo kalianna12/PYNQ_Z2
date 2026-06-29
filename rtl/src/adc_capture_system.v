@@ -7,6 +7,13 @@ module adc_capture_system #(
     (* X_INTERFACE_INFO = "xilinx.com:signal:clock:1.0 S_AXI_ACLK CLK" *)
     (* X_INTERFACE_PARAMETER = "ASSOCIATED_BUSIF S_AXI:M_AXIS_SAMPLE, ASSOCIATED_RESET S_AXI_ARESETN" *)
     input wire S_AXI_ACLK,
+    (* X_INTERFACE_INFO = "xilinx.com:signal:clock:1.0 ADC_CLK_62M5 CLK" *)
+    (* X_INTERFACE_PARAMETER = "FREQ_HZ 62500000" *)
+    input wire adc_clk_62m5,
+    (* X_INTERFACE_INFO = "xilinx.com:signal:clock:1.0 ADC_CAPTURE_CLK_62M5 CLK" *)
+    (* X_INTERFACE_PARAMETER = "FREQ_HZ 62500000" *)
+    input wire adc_capture_clk_62m5,
+    input wire adc_clock_locked,
     (* X_INTERFACE_INFO = "xilinx.com:signal:reset:1.0 S_AXI_ARESETN RST" *)
     (* X_INTERFACE_PARAMETER = "POLARITY ACTIVE_LOW" *)
     input wire S_AXI_ARESETN,
@@ -58,7 +65,11 @@ module adc_capture_system #(
     input wire [11:0] adc_b_data,
     input wire adc_a_ora,
     input wire adc_b_orb,
+    (* X_INTERFACE_INFO = "xilinx.com:signal:clock:1.0 ADC_A_CLK_OUT CLK" *)
+    (* X_INTERFACE_PARAMETER = "FREQ_HZ 62500000" *)
     output wire adc_a_clk,
+    (* X_INTERFACE_INFO = "xilinx.com:signal:clock:1.0 ADC_B_CLK_OUT CLK" *)
+    (* X_INTERFACE_PARAMETER = "FREQ_HZ 62500000" *)
     output wire adc_b_clk,
 
     (* X_INTERFACE_INFO = "xilinx.com:interface:axis:1.0 M_AXIS_SAMPLE TDATA" *)
@@ -130,10 +141,10 @@ module adc_capture_system #(
     wire [31:0] error_flags_in;
     wire [31:0] error_flags_latched;
     wire fatal_error;
-    reg adc_a_ora_d0;
-    reg adc_a_ora_d1;
-    reg adc_b_orb_d0;
-    reg adc_b_orb_d1;
+    (* ASYNC_REG = "TRUE" *) reg adc_a_ora_d0;
+    (* ASYNC_REG = "TRUE" *) reg adc_a_ora_d1;
+    (* ASYNC_REG = "TRUE" *) reg adc_b_orb_d0;
+    (* ASYNC_REG = "TRUE" *) reg adc_b_orb_d1;
 
     always @(posedge S_AXI_ACLK) begin
         if (!S_AXI_ARESETN) begin
@@ -174,7 +185,7 @@ module adc_capture_system #(
     adc_ctrl_axi #(
         .C_S_AXI_DATA_WIDTH(C_S_AXI_DATA_WIDTH),
         .C_S_AXI_ADDR_WIDTH(C_S_AXI_ADDR_WIDTH),
-        .VERSION_VALUE(32'h00010000)
+        .VERSION_VALUE(32'h00020000)
     ) ctrl_i (
         .S_AXI_ACLK(S_AXI_ACLK),
         .S_AXI_ARESETN(S_AXI_ARESETN),
@@ -249,6 +260,9 @@ module adc_capture_system #(
         .SAMPLE_DELAY_MAX(31)
     ) capture_i (
         .clk_125m(S_AXI_ACLK),
+        .adc_clk_62m5(adc_clk_62m5),
+        .adc_capture_clk_62m5(adc_capture_clk_62m5),
+        .adc_clock_locked(adc_clock_locked),
         .resetn(S_AXI_ARESETN),
         .enable(enable),
         .start_pulse(start_pulse),

@@ -41,6 +41,7 @@ add_files -norecurse $rtl_src
 add_files -fileset constrs_1 -norecurse $board_io_xdc
 if {[file exists $adc_xdc]} {
     add_files -fileset constrs_1 -norecurse $adc_xdc
+    set_property PROCESSING_ORDER LATE [get_files $adc_xdc]
 } else {
     puts "WARNING: ADC XDC not found: $adc_xdc"
 }
@@ -63,6 +64,17 @@ set_property -dict [list \
 apply_bd_automation -rule xilinx.com:bd_rule:processing_system7 \
     -config {make_external "FIXED_IO, DDR"} \
     [get_bd_cells processing_system7_0]
+
+create_bd_cell -type ip -vlnv xilinx.com:ip:clk_wiz:6.0 adc_clock_wizard_0
+set_property -dict [list \
+    CONFIG.PRIM_IN_FREQ {125.000} \
+    CONFIG.CLKOUT1_REQUESTED_OUT_FREQ {62.500} \
+    CONFIG.CLKOUT1_REQUESTED_PHASE {0.000} \
+    CONFIG.CLKOUT2_USED {true} \
+    CONFIG.CLKOUT2_REQUESTED_OUT_FREQ {62.500} \
+    CONFIG.CLKOUT2_REQUESTED_PHASE {258.750} \
+    CONFIG.USE_RESET {false} \
+] [get_bd_cells adc_clock_wizard_0]
 
 create_bd_cell -type module -reference led_ctrl_axi led_ctrl_0
 
@@ -242,6 +254,17 @@ if {[llength $fclk0_pin] == 0} {
     puts "ERROR: Could not find processing_system7_0/FCLK_CLK0"
     exit 1
 }
+
+connect_bd_net $fclk0_pin [get_bd_pins adc_clock_wizard_0/clk_in1]
+connect_bd_net \
+    [get_bd_pins adc_clock_wizard_0/clk_out1] \
+    [get_bd_pins adc_capture_0/adc_clk_62m5]
+connect_bd_net \
+    [get_bd_pins adc_clock_wizard_0/clk_out2] \
+    [get_bd_pins adc_capture_0/adc_capture_clk_62m5]
+connect_bd_net \
+    [get_bd_pins adc_clock_wizard_0/locked] \
+    [get_bd_pins adc_capture_0/adc_clock_locked]
 
 foreach clk_target {
     led_ctrl_0/S_AXI_ACLK

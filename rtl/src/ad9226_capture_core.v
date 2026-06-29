@@ -5,6 +5,9 @@ module ad9226_capture_core #(
     parameter integer SAMPLE_DELAY_MAX = 31
 ) (
     input wire clk_125m,
+    input wire adc_clk_62m5,
+    input wire adc_capture_clk_62m5,
+    input wire adc_clock_locked,
     input wire resetn,
 
     input wire enable,
@@ -60,10 +63,13 @@ module ad9226_capture_core #(
     localparam [1:0] MODE_REAL_ADC = 2'd1;
     localparam [1:0] MODE_CAPTURE_FAKE = 2'd2;
 
-    reg [11:0] adc_a_d0;
-    reg [11:0] adc_a_d1;
-    reg [11:0] adc_b_d0;
-    reg [11:0] adc_b_d1;
+    (* IOB = "TRUE" *) reg [11:0] adc_a_capture = 12'd0;
+    (* IOB = "TRUE" *) reg [11:0] adc_b_capture = 12'd0;
+    reg capture_toggle = 1'b0;
+    reg [11:0] adc_a_sample_125;
+    reg [11:0] adc_b_sample_125;
+    reg capture_toggle_seen;
+    reg adc_sample_pulse;
     reg [11:0] prev_a;
     reg [11:0] prev_b;
 
@@ -77,18 +83,8 @@ module ad9226_capture_core #(
     reg [31:0] pre_delay_run;
     reg buffer_select_run;
 
-    reg [15:0] adc_half_period_active;
-    reg [15:0] half_count;
-    reg adc_clk_div_r;
-    reg adc_rise_pulse;
-
-    reg delay_active;
-    reg [7:0] delay_count;
-    reg sample_point_pulse;
     reg [15:0] decimation_count;
     reg [31:0] pre_delay_count;
-
-    wire [15:0] cfg_half_safe = (adc_half_period_cfg == 16'd0) ? 16'd1 : adc_half_period_cfg;
 
     wire [31:0] sample_count_clamped =
         (sample_count_cfg < 32'd1) ? 32'd1 :
@@ -110,15 +106,13 @@ module ad9226_capture_core #(
     wire cfg_has_error =
         (sample_count_cfg < 32'd1) ||
         (sample_count_cfg > MAX_SAMPLE_N) ||
-        (adc_half_period_cfg < 16'd1) ||
-        (sample_delay_cfg > SAMPLE_DELAY_MAX[7:0]) ||
         (decimation_cfg < 16'd1) ||
         (channel_mask_cfg == 2'b00);
 
     wire [11:0] raw_sample_a_next =
-        (capture_mode_run == MODE_CAPTURE_FAKE) ? saved_counter[11:0] : adc_a_d1;
+        (capture_mode_run == MODE_CAPTURE_FAKE) ? saved_counter[11:0] : adc_a_sample_125;
     wire [11:0] raw_sample_b_next =
-        (capture_mode_run == MODE_CAPTURE_FAKE) ? (12'hFFF - saved_counter[11:0]) : adc_b_d1;
+        (capture_mode_run == MODE_CAPTURE_FAKE) ? (12'hFFF - saved_counter[11:0]) : adc_b_sample_125;
     wire data_changed_a_next = (raw_sample_a_next != prev_a);
     wire data_changed_b_next = (raw_sample_b_next != prev_b);
     wire near_rail_a_next = (raw_sample_a_next <= 12'd8) || (raw_sample_a_next >= 12'hFF7);
@@ -129,109 +123,65 @@ module ad9226_capture_core #(
     wire [3:0] flags_b_next = {2'b00, data_changed_b_next, near_rail_b_next};
 
 `ifndef SYNTHESIS
-    assign adc_a_clk = enable ? adc_clk_div_r : 1'b0;
-    assign adc_b_clk = enable ? adc_clk_div_r : 1'b0;
+    assign adc_a_clk = (enable && adc_clock_locked) ? adc_clk_62m5 : 1'b0;
+    assign adc_b_clk = (enable && adc_clock_locked) ? adc_clk_62m5 : 1'b0;
 `else
-    // ODDR is used here as an output register for the divided ADC clock.
-    // This is not the future fast-clock mode with D1=1'b1 and D2=1'b0.
     ODDR #(
-        .DDR_CLK_EDGE("SAME_EDGE"),
+        .DDR_CLK_EDGE("OPPOSITE_EDGE"),
         .INIT(1'b0),
         .SRTYPE("SYNC")
     ) adc_a_clk_oddr_i (
         .Q(adc_a_clk),
-        .C(clk_125m),
+        .C(adc_clk_62m5),
         .CE(1'b1),
-        .D1(adc_clk_div_r),
-        .D2(adc_clk_div_r),
-        .R((!resetn) || soft_reset || (!enable)),
+        .D1(1'b1),
+        .D2(1'b0),
+        .R((!resetn) || soft_reset || (!enable) || (!adc_clock_locked)),
         .S(1'b0)
     );
 
     ODDR #(
-        .DDR_CLK_EDGE("SAME_EDGE"),
+        .DDR_CLK_EDGE("OPPOSITE_EDGE"),
         .INIT(1'b0),
         .SRTYPE("SYNC")
     ) adc_b_clk_oddr_i (
         .Q(adc_b_clk),
-        .C(clk_125m),
+        .C(adc_clk_62m5),
         .CE(1'b1),
-        .D1(adc_clk_div_r),
-        .D2(adc_clk_div_r),
-        .R((!resetn) || soft_reset || (!enable)),
+        .D1(1'b1),
+        .D2(1'b0),
+        .R((!resetn) || soft_reset || (!enable) || (!adc_clock_locked)),
         .S(1'b0)
     );
 `endif
 
-    always @(posedge clk_125m) begin
-        if (!resetn) begin
-            adc_a_d0 <= 12'd0;
-            adc_a_d1 <= 12'd0;
-            adc_b_d0 <= 12'd0;
-            adc_b_d1 <= 12'd0;
-        end else begin
-            adc_a_d0 <= adc_a_data;
-            adc_a_d1 <= adc_a_d0;
-            adc_b_d0 <= adc_b_data;
-            adc_b_d1 <= adc_b_d0;
-        end
+    // The falling edge of the 258.75-degree clock is 19.5 ns after launch.
+    // launch. It leaves margin for FPGA clock-out, ADC tCO, board skew, and IBUF.
+    // These first-stage registers stay free of reset/mux logic so Vivado can
+    // place them in the input IOBs. The 125 MHz domain ignores them until LOCKED.
+    always @(negedge adc_capture_clk_62m5) begin
+        adc_a_capture <= adc_a_data;
+        adc_b_capture <= adc_b_data;
+        capture_toggle <= ~capture_toggle;
     end
 
     always @(posedge clk_125m) begin
-        if (!resetn || soft_reset) begin
-            half_count <= 16'd0;
-            adc_half_period_active <= 16'd6;
-            adc_clk_div_r <= 1'b0;
+        if (!resetn || soft_reset || !adc_clock_locked) begin
+            adc_a_sample_125 <= 12'd0;
+            adc_b_sample_125 <= 12'd0;
+            capture_toggle_seen <= 1'b0;
+            adc_sample_pulse <= 1'b0;
             adc_clk_seen <= 1'b0;
-            adc_rise_pulse <= 1'b0;
         end else begin
-            adc_rise_pulse <= 1'b0;
-
-            if (!enable || clear_pulse) begin
-                half_count <= 16'd0;
-                adc_clk_div_r <= 1'b0;
-            end else if (start_pulse && !busy) begin
-                half_count <= 16'd0;
-                adc_half_period_active <= adc_half_period_clamped;
-                adc_clk_div_r <= 1'b0;
-            end else if (half_count >= adc_half_period_active - 1'b1) begin
-                half_count <= 16'd0;
-                adc_clk_div_r <= ~adc_clk_div_r;
+            adc_sample_pulse <= 1'b0;
+            if (clear_pulse) begin
+                capture_toggle_seen <= capture_toggle;
+            end else if (capture_toggle != capture_toggle_seen) begin
+                capture_toggle_seen <= capture_toggle;
+                adc_a_sample_125 <= adc_a_capture;
+                adc_b_sample_125 <= adc_b_capture;
+                adc_sample_pulse <= 1'b1;
                 adc_clk_seen <= 1'b1;
-                if (!adc_clk_div_r) begin
-                    adc_rise_pulse <= 1'b1;
-                end
-            end else begin
-                half_count <= half_count + 1'b1;
-            end
-        end
-    end
-
-    always @(posedge clk_125m) begin
-        if (!resetn || soft_reset || clear_pulse) begin
-            delay_active <= 1'b0;
-            delay_count <= 8'd0;
-            sample_point_pulse <= 1'b0;
-        end else begin
-            sample_point_pulse <= 1'b0;
-
-            if (adc_rise_pulse) begin
-                if (sample_delay_run == 8'd0) begin
-                    delay_active <= 1'b0;
-                    delay_count <= 8'd0;
-                    sample_point_pulse <= 1'b1;
-                end else begin
-                    delay_active <= 1'b1;
-                    delay_count <= 8'd0;
-                end
-            end else if (delay_active) begin
-                if (delay_count >= sample_delay_run - 1'b1) begin
-                    delay_active <= 1'b0;
-                    delay_count <= 8'd0;
-                    sample_point_pulse <= 1'b1;
-                end else begin
-                    delay_count <= delay_count + 1'b1;
-                end
             end
         end
     end
@@ -307,7 +257,7 @@ module ad9226_capture_core #(
                 decimation_count <= 16'd0;
                 pre_delay_count <= pre_delay_cfg;
                 debug_state <= (capture_mode_cfg == MODE_WRITER_FAKE) ? ST_DONE : ST_ARMED;
-            end else if (busy && sample_point_pulse) begin
+            end else if (busy && adc_sample_pulse) begin
                 sample_counter <= sample_counter + 1'b1;
 
                 if (pre_delay_count != 32'd0) begin

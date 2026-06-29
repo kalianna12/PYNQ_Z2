@@ -42,6 +42,7 @@ CORE_DONE = 0x6C
 S2MM_DMASR = 0x34
 SENTINEL = np.uint32(0xDEADBEEF)
 PL_CLK_HZ = 125_000_000
+ADC_SAMPLE_HZ = 62_500_000
 MAX_SAMPLE_N = 262144
 
 
@@ -116,13 +117,14 @@ def dump_ctrl(ctrl):
     print("VERSION         = 0x%08X" % ctrl.read(VERSION))
 
 
-def configure_capture(ctrl, sample_count, adc_half_period, decimation, capture_mode, sample_delay=1):
+def configure_capture(ctrl, sample_count, adc_half_period, decimation, capture_mode, sample_delay=0):
     ctrl.write(CTRL, 0x04)
     ctrl.write(CTRL, 0x00)
     ctrl.write(ERROR_FLAGS, 0xFFFFFFFF)
     ctrl.write(SAMPLE_COUNT, sample_count)
-    ctrl.write(ADC_HALF, adc_half_period)
-    ctrl.write(SAMPLE_DELAY, sample_delay)
+    # Fixed-speed RTL keeps these legacy registers for address compatibility.
+    ctrl.write(ADC_HALF, 1)
+    ctrl.write(SAMPLE_DELAY, 0)
     ctrl.write(DECIMATION, decimation)
     ctrl.write(CHANNEL_MASK, 0b11)
     ctrl.write(CAPTURE_MODE, capture_mode)
@@ -132,7 +134,7 @@ def configure_capture(ctrl, sample_count, adc_half_period, decimation, capture_m
 
 
 def run_dma_capture(ctrl, dma, sample_count=65536, adc_half_period=1, decimation=1,
-                    capture_mode=2, sample_delay=1, verbose=True):
+                    capture_mode=2, sample_delay=0, verbose=True):
     if capture_mode == 0:
         raise ValueError("capture_mode=0 is not valid for AXI DMA.")
 
@@ -140,7 +142,8 @@ def run_dma_capture(ctrl, dma, sample_count=65536, adc_half_period=1, decimation
     adc_half_period = max(int(adc_half_period), 1)
     decimation = max(int(decimation), 1)
     sample_delay = min(max(int(sample_delay), 0), 31)
-    actual_fs = PL_CLK_HZ / (2 * adc_half_period)
+    physical_fs = float(ADC_SAMPLE_HZ)
+    actual_fs = physical_fs / decimation
 
     buf = allocate(shape=(sample_count,), dtype=np.uint32)
     buf[:] = SENTINEL
@@ -164,8 +167,11 @@ def run_dma_capture(ctrl, dma, sample_count=65536, adc_half_period=1, decimation
 
     if verbose:
         print("DMA wait elapsed = %.6f s" % elapsed)
-        print("target Fs        = %.3f MSPS" % (actual_fs / 1e6))
-        print("sample_delay     = %d FCLK cycles" % sample_delay)
+        print("physical ADC Fs  = %.3f MSPS (fixed)" % (physical_fs / 1e6))
+        print("saved sample Fs  = %.3f MSPS" % (actual_fs / 1e6))
+        print("decimation       = %d" % decimation)
+        if adc_half_period != 1 or sample_delay != 0:
+            print("legacy half_period/sample_delay arguments are ignored")
         dump_ctrl(ctrl)
         dump_dma(dma)
 
